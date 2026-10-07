@@ -1,0 +1,15 @@
+/.env
+.env.local
+backend/.env.local
+backend/.env.*.local
+backend/vendor/
+backend/var/
+frontend/node_modules/
+frontend/.next/
+frontend/*.tsbuildinfo
+backups/
+docker/oracle/*.zip
+*.log
+backend/.phpunit.cache/
+backend/.php-cs-fixer.cache
+gcom-dts-producao/

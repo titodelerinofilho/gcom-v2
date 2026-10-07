@@ -1,0 +1,20 @@
+parameters:
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+    App\:
+        resource: '../src/'
+        exclude: ['../src/Dto/', '../src/Entity/', '../src/Kernel.php', '../src/Database/Event/', '../src/Event/', '../src/Database/Doctrine/', '../src/Database/Statement/{Query,Result,Transaction}.php']
+    App\Database\Connection\DatabaseConnection:
+        arguments:
+            $dsn: '%env(ORACLE_DSN)%'
+            $username: '%env(ORACLE_USER)%'
+            $password: '%env(ORACLE_PASSWORD)%'
+    App\Integration\Winthor\MovementGatewayInterface: '@App\Repository\Winthor\MovementRepository'
+    App\Integration\Winthor\OrderGatewayInterface: '@App\Repository\Winthor\OrderRepository'
+    App\EventListener\Logs\RedactionProcessor:
+        tags: [{ name: monolog.processor }]
+    App\EventListener\Logs\RequestContextProcessor:
+        tags: [{ name: monolog.processor }]
+    App\Database\Doctrine\QueryMiddleware: ~

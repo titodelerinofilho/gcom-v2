@@ -1,0 +1,37 @@
+security:
+    password_hashers:
+        Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: auto
+    providers:
+        app_users:
+            entity:
+                class: App\Entity\User
+                property: email
+    role_hierarchy:
+        ROLE_ADMIN: [ROLE_OPERATOR, ROLE_FINANCE, ROLE_AUDITOR]
+    firewalls:
+        dev:
+            pattern: ^/(_(profiler|wdt)|css|images|js)/
+            security: false
+        main:
+            lazy: true
+            entry_point: App\Security\ApiEntryPoint
+            provider: app_users
+            user_checker: App\Security\UserChecker
+            json_login:
+                check_path: /api/login
+                username_path: email
+                password_path: password
+                success_handler: App\Security\LoginHandler
+                failure_handler: App\Security\LoginHandler
+            login_throttling:
+                max_attempts: 5
+                interval: '1 minute'
+            logout:
+                path: /api/logout
+                enable_csrf: true
+                csrf_token_id: api
+                csrf_parameter: _csrf_token
+    access_control:
+        - { path: ^/api/(health|csrf|login)$, roles: PUBLIC_ACCESS }
+        - { path: ^/api/users, roles: ROLE_ADMIN }
+        - { path: ^/api, roles: ROLE_USER }

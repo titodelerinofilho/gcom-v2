@@ -1,0 +1,7 @@
+services:
+    App\Tests\Double\InMemoryOrderGateway:
+        public: true
+    App\Integration\Winthor\OrderGatewayInterface: '@App\Tests\Double\InMemoryOrderGateway'
+    App\Tests\Double\InMemoryMovementGateway:
+        public: true
+    App\Integration\Winthor\MovementGatewayInterface: '@App\Tests\Double\InMemoryMovementGateway'

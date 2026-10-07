@@ -1,0 +1,65 @@
+monolog:
+    channels:
+        - database_queries
+        - exceptions
+        - message_transporter_consume
+        - message_transporter_emit
+        - requests
+        - responses
+        - audit
+        - deprecation
+    handlers:
+        database_queries:
+            type: stream
+            path: 'php://stdout'
+            level: info
+            channels: [database_queries]
+            formatter: monolog.formatter.json
+        exceptions:
+            type: stream
+            path: 'php://stderr'
+            level: critical
+            channels: [exceptions]
+            formatter: monolog.formatter.json
+        message_transporter_consume:
+            type: stream
+            path: 'php://stdout'
+            level: info
+            channels: [message_transporter_consume]
+            formatter: monolog.formatter.json
+        message_transporter_emit:
+            type: stream
+            path: 'php://stdout'
+            level: info
+            channels: [message_transporter_emit]
+            formatter: monolog.formatter.json
+        requests:
+            type: stream
+            path: 'php://stdout'
+            level: info
+            channels: [requests]
+            formatter: monolog.formatter.json
+        responses:
+            type: stream
+            path: 'php://stdout'
+            level: info
+            channels: [responses]
+            formatter: monolog.formatter.json
+        audit:
+            type: stream
+            path: 'php://stdout'
+            level: info
+            channels: [audit]
+            formatter: monolog.formatter.json
+        deprecation:
+            type: stream
+            path: 'php://stderr'
+            level: notice
+            channels: [deprecation]
+            formatter: monolog.formatter.json
+        application:
+            type: stream
+            path: 'php://stderr'
+            level: warning
+            channels: ['!database_queries', '!exceptions', '!message_transporter_consume', '!message_transporter_emit', '!requests', '!responses', '!audit', '!deprecation', '!request', '!doctrine']
+            formatter: monolog.formatter.json
