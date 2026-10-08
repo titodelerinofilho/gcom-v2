@@ -14,6 +14,7 @@ final readonly class PriceContextOutput
         public string $priceColumn,
         public string $normalBasis,
         public int $ruleVersion,
+        public ?int $comparisonSquare = null,
     ) {
     }
 }

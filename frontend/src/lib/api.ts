@@ -49,6 +49,12 @@ export const date = (value: string) =>
     new Date(value.length === 10 ? `${value}T12:00:00` : value),
   );
 export type User = { id: number; name: string; email: string; roles: string[]; active: boolean };
+export const dateTime = (value: string) =>
+  new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "medium",
+    timeZone: "America/Fortaleza",
+  }).format(new Date(value));
 export type Page<T> = { items: T[]; total: number; page: number };
 export type Item = {
   id: number;
@@ -102,6 +108,57 @@ export type Payment = {
   verification: string;
   notes: string;
 };
+export type CommissionSquare = {
+  code: number;
+  name: string;
+  type: "psd" | "pscf";
+  psdSquare: number;
+  pscfSquare: number;
+  psdRegion: number | null;
+  pscfRegion: number | null;
+};
+export type CommissionChecks = {
+  customerCode: string;
+  checkedAt: string;
+  overdueTotal: string;
+  returnsFound: number;
+  fingerprint: string;
+  overdueTitles: {
+    customerCode: string;
+    customerName: string;
+    invoiceNumber: string;
+    transaction: string;
+    installment: string;
+    dueDate: string;
+    originalDueDate: string | null;
+    overdueDays: number;
+    collectionCode: string;
+    amount: string;
+  }[];
+  returns: {
+    transaction: string;
+    invoiceNumber: string;
+    customerCode: string;
+    customerName: string;
+    date: string | null;
+    orderNumbers: string[];
+    deductionAmount: string | null;
+    selected: boolean;
+    items?: {
+      orderNumber: string;
+      productCode: string;
+      description: string;
+      quantity: string;
+      paymentStatus: "paid" | "not_found" | "unmatched";
+      paidCommissions: {
+        commissionId: number;
+        commissionCode: string;
+        mode: "normal" | "atg";
+        paidAt: string;
+      }[];
+    }[];
+  }[];
+};
 export type Commission = {
   id: number;
   mode: "normal" | "atg";
@@ -116,7 +173,12 @@ export type Commission = {
   createdBy: { id: number; name: string };
   approvedBy: string | null;
   approvedAt: string | null;
+  rejectionReason?: string | null;
+  rejectedAt?: string | null;
+  rejectedBy?: string | null;
   calculation?: {
+    square?: number;
+    checks?: CommissionChecks;
     version: string;
     reason: string;
     rule?: CommissionRule;
@@ -152,6 +214,7 @@ export type Summary = {
 };
 
 export type PriceContext = {
+  comparisonSquare?: number;
   branch: string;
   orderRegion: number;
   psdRegion: number;
@@ -213,6 +276,7 @@ export type CommissionRule = {
   createdBy: string | null;
 };
 export type CalculationPreview = {
+  checks: CommissionChecks;
   adjustmentIds: number[];
   adjustments: Adjustment[];
   calculation: {

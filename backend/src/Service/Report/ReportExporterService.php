@@ -10,12 +10,13 @@ use App\Service\Report\Export\CsvExportStrategy;
 use App\Service\Report\Export\PdfExportStrategy;
 use App\Service\Report\Export\XlsxExportStrategy;
 use DateTimeImmutable;
+use DateTimeZone;
 use Throwable;
 
 final readonly class ReportExporterService
 {
     private const array COLUMNS = [
-        'commissions' => ['code' => 'Código', 'customer_code' => 'Cliente', 'customer_name' => 'Nome', 'gross_amount' => 'Bruto', 'deductions' => 'Deduções', 'net_amount' => 'Líquido calculado', 'paid_amount' => 'Valor pago', 'manual_amount' => 'Valor manual', 'manual_reason' => 'Justificativa manual', 'status' => 'Status', 'created_at' => 'Criada em', 'routine' => 'Rotina', 'reference' => 'RECNUM PCLANC', 'verification' => 'Verificação', 'paid_at' => 'Pago em', 'mode' => 'Modalidade', 'orders' => 'Pedidos'],
+        'commissions' => ['code' => 'Código', 'customer_code' => 'Cliente', 'customer_name' => 'Nome', 'gross_amount' => 'Bruto', 'deductions' => 'Deduções', 'net_amount' => 'Líquido calculado', 'paid_amount' => 'Valor pago', 'manual_amount' => 'Valor manual', 'manual_reason' => 'Justificativa manual', 'status' => 'Status', 'created_at' => 'Criada em', 'routine' => 'Rotina', 'reference' => 'Lançamento · Rotina 749', 'verification' => 'Verificação', 'paid_at' => 'Pago em', 'mode' => 'Modalidade', 'orders' => 'Pedidos', 'rejection_reason' => 'Justificativa da reprovação', 'rejected_at' => 'Reprovada em', 'rejected_by' => 'Reprovada por'],
         'adjustments' => ['customer_code' => 'Cliente principal', 'type' => 'Tipo', 'source_reference' => 'Referência', 'reason' => 'Motivo', 'amount' => 'Valor', 'state' => 'Situação', 'created_at' => 'Lançado em', 'commission_code' => 'Comissão do abatimento', 'deducted_at' => 'Deduzido em', 'commission_status' => 'Status da comissão', 'paid_at' => 'Pago em', 'mode' => 'Modalidade'],
     ];
 
@@ -26,7 +27,7 @@ final readonly class ReportExporterService
     ) {
     }
 
-    public function generate(string $format, string $from, string $to, array $filters = [], string $kind = 'commissions'): string
+    public function generate(string $format, string $from, string $to, array $filters = [], string $kind = 'commissions', ?array $snapshotRows = null, ?string $savedAt = null): string
     {
         $path = tempnam(sys_get_temp_dir(), 'gcom-report-');
 
@@ -39,11 +40,11 @@ final readonly class ReportExporterService
 
             $title = 'commissions' === $kind ? 'Comissões' : 'Débitos, devoluções e cancelamentos';
 
-            $end = (new DateTimeImmutable($to))->modify('-1 day')->format('Y-m-d');
+            $end = new DateTimeImmutable($to)->modify('-1 day')->format('Y-m-d');
 
             $criteria = $from.' a '.$end;
             $labels = ['customer' => 'Cliente principal', 'orderNumber' => 'Pedido', 'status' => 'Status da comissão', 'mode' => 'Modalidade', 'type' => 'Tipo', 'state' => 'Abatimento', 'dateBasis' => 'Data considerada'];
-            $values = ['normal' => 'Normal', 'atg' => 'ATG', 'pending' => 'Pendente', 'approved' => 'Aprovada', 'paid' => 'Paga / pagamento', 'deducted' => 'Deduzido', 'debt' => 'Débito', 'return' => 'Devolução', 'cancellation' => 'Cancelamento', 'created' => 'Cadastro', 'applied' => 'Abatimento'];
+            $values = ['normal' => 'Normal', 'atg' => 'ATG', 'pending' => 'Pendente', 'approved' => 'Aprovada', 'paid' => 'Paga / pagamento', 'rejected' => 'Reprovada', 'deducted' => 'Deduzido', 'debt' => 'Débito', 'return' => 'Devolução', 'cancellation' => 'Cancelamento', 'created' => 'Cadastro', 'applied' => 'Abatimento'];
 
             foreach ($filters as $key => $value) {
                 $criteria .= ' · '.$labels[$key].': '.($values[$value] ?? $value);
@@ -57,7 +58,10 @@ final readonly class ReportExporterService
                 $kind,
                 $columns,
                 $title,
-                $criteria
+                $criteria,
+                $snapshotRows,
+                $savedAt,
+                new DateTimeImmutable('now', new DateTimeZone('America/Fortaleza'))->format('d/m/Y H:i:s').' (America/Fortaleza)',
             );
 
             $strategy = match ($format) {

@@ -21,24 +21,24 @@ final class ReportRepository
                    COALESCE(SUM(deductions), 0) AS deductions,
                    COALESCE(SUM((SELECT p.amount FROM payment_link p WHERE p.commission_id = commission.id)) FILTER (WHERE status = 'paid'), 0) AS paid,
                    COALESCE(SUM(net_amount) FILTER (WHERE status <> 'paid'), 0) AS outstanding
-            FROM commission WHERE created_at >= :from AND created_at < :to
+            FROM commission WHERE status <> 'rejected' AND created_at >= :from AND created_at < :to
             SQL;
         $statusSql = <<<'SQL'
             SELECT status, COUNT(*) AS count,
                    SUM(CASE WHEN status = 'paid' THEN
                        (SELECT p.amount FROM payment_link p WHERE p.commission_id = commission.id)
                        ELSE net_amount END) AS amount
-            FROM commission WHERE created_at >= :from AND created_at < :to
+            FROM commission WHERE status <> 'rejected' AND created_at >= :from AND created_at < :to
             GROUP BY status
             SQL;
         $customerSql = <<<'SQL'
             SELECT customer_code, customer_name, COUNT(*) AS count, SUM(net_amount) AS amount
-            FROM commission WHERE created_at >= :from AND created_at < :to
+            FROM commission WHERE status <> 'rejected' AND created_at >= :from AND created_at < :to
             GROUP BY customer_code, customer_name ORDER BY amount DESC LIMIT 20
             SQL;
         $monthlySql = <<<'SQL'
             SELECT TO_CHAR(created_at, 'YYYY-MM') AS month, SUM(net_amount) AS amount
-            FROM commission WHERE created_at >= :from AND created_at < :to
+            FROM commission WHERE status <> 'rejected' AND created_at >= :from AND created_at < :to
             GROUP BY month ORDER BY month
             SQL;
 
@@ -58,7 +58,7 @@ final class ReportRepository
     public function search(string $from, string $to, array $filters, string $kind, int $page): array
     {
         [$sql, $parameters] = $this->definition($from, $to, $filters, $kind);
-        $amount = 'commissions' === $kind ? 'net_amount' : 'amount';
+        $amount = 'commissions' === $kind ? "CASE WHEN status = 'rejected' THEN 0 ELSE net_amount END" : 'amount';
         $totalsSql = 'SELECT COUNT(*) AS count, COALESCE(SUM('.$amount.'), 0) AS amount FROM ('.$sql.') report';
         $totals = $this->connection->fetchAssociative($totalsSql, $parameters);
         $rowsSql = $sql.' ORDER BY created_at DESC, id DESC LIMIT 30 OFFSET '.(($page - 1) * 30);
@@ -76,19 +76,20 @@ final class ReportRepository
             $sql = <<<'SQL'
                 SELECT c.code, c.customer_code, c.customer_name, c.gross_amount,
                        c.deductions, c.net_amount, c.status, c.created_at,
+                       c.rejection_reason, c.rejected_at, (SELECT u.name FROM app_user u WHERE u.id = c.rejected_by_id) AS rejected_by,
                        p.routine, p.reference, p.verification, p.paid_at,
                        p.amount AS paid_amount, p.calculated_amount, p.manual_reason,
                        CASE WHEN p.manual_amount = TRUE THEN 'Sim' WHEN p.manual_amount = FALSE THEN 'Não' ELSE NULL END AS manual_amount,
                        COALESCE(c.calculation->>'mode', 'normal') AS mode,
                        (SELECT STRING_AGG(o.order_number || ' · NF ' || COALESCE(o.header->>'NUMNOTA', o.header->>'NUMCUPOM', '—'), ', ' ORDER BY o.order_number)
-                        FROM order_snapshot o WHERE o.commission_id = c.id) AS orders,
+                        FROM order_snapshot o WHERE o.commission_id = c.id OR EXISTS (SELECT 1 FROM commission_rejected_order a WHERE a.order_snapshot_id = o.id AND a.commission_id = c.id)) AS orders,
                        c.id
                 FROM commission c
                 LEFT JOIN payment_link p ON p.commission_id = c.id
                 SQL;
 
             if (true === isset($filters['orderNumber'])) {
-                $where[] = 'EXISTS (SELECT 1 FROM order_snapshot o WHERE o.commission_id = c.id AND o.order_number = :order_number)';
+                $where[] = 'EXISTS (SELECT 1 FROM order_snapshot o WHERE (o.commission_id = c.id OR EXISTS (SELECT 1 FROM commission_rejected_order a WHERE a.order_snapshot_id = o.id AND a.commission_id = c.id)) AND o.order_number = :order_number)';
                 $parameters['order_number'] = $filters['orderNumber'];
             }
 

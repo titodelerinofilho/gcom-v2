@@ -54,20 +54,29 @@ A imagem Oracle está preparada para Linux x86-64.
 
 ## Lançamento de comissão
 
-Em **Comissões → Nova comissão**, informe o código do **cliente principal** e as
-**datas inicial/final**. Clique em **Buscar pedidos no Winthor**; a busca usa a data
-do pedido e inclui clientes vinculados ao principal por CODREVENDA, além do próprio
-cliente. Nenhuma consulta de pedidos ocorre antes de preencher esses filtros.
+Em **Comissões → Nova comissão**, informe o código do **cliente principal**, a
+**modalidade**, a **praça dos pedidos** e as **datas inicial/final**. Comissão normal
+aceita praças PSCF e exige vínculo pelo CODREVENDA; praças PSD exigem ATG. O filtro
+usa o CODPRACA do pedido, permitindo escolher pedidos de outra praça sem depender
+da praça atual do cliente. O cálculo usa o par PSD/PSCF da praça escolhida, mantendo
+a tabela original no snapshot. Praça e vínculo são conferidos novamente no lançamento. Clique em **Buscar pedidos no Winthor**; a busca usa a data
+do pedido e inclui clientes vinculados ao principal por CODREVENDA. Em ATG, inclui
+também o próprio cliente sem revenda. Nenhuma consulta de pedidos ocorre antes de preencher esses filtros.
 Pedidos já vinculados a comissões ficam fora da seleção. A lista mostra, por pedido,
 filial, tabela/região, pareamento PSD/PSCF, plano/coluna de preço e referência da modalidade.
 Pedidos sem pareamento ou plano válido ficam bloqueados para seleção.
 
 Selecione os pedidos e a modalidade normal/ATG, depois clique em **Simular comissão**.
 A simulação importa os pedidos selecionados e todos os itens para snapshots no GCOM,
-aplica a regra do administrador e deduz os ajustes pendentes do principal, inclusive
-os de períodos anteriores. Confira o resultado, preencha a justificativa e clique
-em **Registrar comissão**. A comissão nasce pendente e precisa de aprovação por outra
-pessoa antes da confirmação do pagamento. Consultas e importações não alteram o Winthor.
+aplica a regra do administrador e mostra os títulos vencidos do cliente e dos vinculados,
+sem descontá-los diretamente. No quadro **Conferência no Winthor**, selecione as devoluções
+que deseja aplicar e simule novamente. Somente as selecionadas são importadas; as demais
+continuam disponíveis. Débitos já registrados e cancelamentos permanecem automáticos.
+Confira o resultado e registre a comissão; a justificativa do lançamento é opcional.
+Um usuário Financeiro aprova antes do pagamento, inclusive quando criou a comissão.
+Ele também pode **Reprovar comissão**, com justificativa obrigatória, enquanto ela estiver
+pendente ou aprovada sem pagamento. A reprovação preserva o histórico e libera pedidos e
+deduções para um novo lançamento. Consultas e importações não alteram o Winthor.
 
 ## Funcionalidades disponíveis
 

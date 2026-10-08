@@ -36,16 +36,23 @@ final readonly class XlsxExportStrategy implements ReportFormatStrategyInterface
         try {
             $writer->setCreator('GCOM · DTS');
             $writer->getCurrentSheet()->setName('commissions' === $kind ? 'Comissões' : 'Deduções');
-            $style = (new Style())->setFontBold()->setFontColor('FFFFFF')->setBackgroundColor('098A14');
+
+            $style = new Style()->setFontBold()->setFontColor('FFFFFF')->setBackgroundColor('098A14');
             $writer->addRow(new Row([new StringCell('GCOM · DTS — '.$title, $style), new StringCell($criteria, $style)]));
+            $writer->addRow(Row::fromValues(['Gerado em', $context->generatedAt]));
+            $writer->addRow(Row::fromValues(['Dados preservados em', $context->savedAt ?? $context->generatedAt]));
             $writer->addRow(Row::fromValues(array_values($columns), $style));
-            $currency = (new Style())->setFormat('"R$" #,##0.00');
+
+            $currency = new Style()->setFormat('"R$" #,##0.00');
+
             foreach ($this->rows->rows($context) as $row) {
                 $atgStyle = 'ATG (Autoagenciamento)' === ($row['mode'] ?? '') ? (new Style())->setBackgroundColor('FFFBEB')->setFontBold()->setFontColor('92400E') : null;
                 $cells = [];
+
                 foreach ($row as $key => $value) {
                     $cells[] = true === in_array($key, self::MONEY_COLUMNS, true) ? new NumericCell((float) $value, null === $atgStyle ? $currency : (clone $atgStyle)->setFormat('"R$" #,##0.00')) : new StringCell((string) $value, $atgStyle);
                 }
+
                 $writer->addRow(new Row($cells));
             }
         } finally {

@@ -1,4 +1,5 @@
 "use client";
+import { CommissionChecksPanel } from "./commission-checks";
 import { CommissionMode } from "./commission-mode";
 import { CommissionSummary } from "./commission-summary";
 import { CalculationLines } from "./calculation-lines";
@@ -17,6 +18,8 @@ import {
   type User,
   type Audit,
   type CalculationPreview,
+  type CommissionChecks,
+  type CommissionSquare,
 } from "@/lib/api";
 import { useUser, allowed } from "./shell";
 import { Empty, ErrorNotice, Loading, Modal, Pagination, Status } from "./ui";
@@ -353,6 +356,7 @@ export function CommissionsPage() {
             ["pending", "Pendentes"],
             ["approved", "A pagar"],
             ["paid", "Pagas"],
+            ["rejected", "Reprovadas"],
           ].map(([v, t]) => (
             <button
               key={v}
@@ -436,6 +440,7 @@ export function CommissionsPage() {
   );
 }
 type AvailableOrder = {
+  square: number;
   invoiceNumber?: string | null;
   orderNumber: string;
   customerCode: string;
@@ -444,6 +449,7 @@ type AvailableOrder = {
   branch: string;
   total: string;
   priceContext: {
+    comparisonSquare?: number;
     orderRegion: number;
     psdRegion: number;
     pscfRegion: number | null;
@@ -470,7 +476,26 @@ function NewCommission({ done }: { done: () => void }) {
   const [orderIds, setOrderIds] = useState<number[]>([]);
 
   const [mode, setMode] = useState("normal");
+  const [square, setSquare] = useState("");
+  const [squares, setSquares] = useState<CommissionSquare[]>([]);
+  const chosenSquare = squares.find((item) => String(item.code) === square);
+
+  useEffect(() => {
+    let active = true;
+    api<CommissionSquare[]>("/commissions/squares")
+      .then((items) => {
+        if (true === active) setSquares(items);
+      })
+      .catch((exception: Error) => {
+        if (true === active) setError(exception.message);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
   const [preview, setPreview] = useState<CalculationPreview>();
+  const [checks, setChecks] = useState<CommissionChecks>();
+  const [selectedReturns, setSelectedReturns] = useState<string[]>([]);
 
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -487,6 +512,8 @@ function NewCommission({ done }: { done: () => void }) {
   }
 
   function clearSearch() {
+    setChecks(undefined);
+    setSelectedReturns([]);
     setOrders(null);
     setAdjustments(null);
     setSelected([]);
@@ -498,8 +525,13 @@ function NewCommission({ done }: { done: () => void }) {
   async function search() {
     clearSearch();
 
-    if (false === /^[1-9][0-9]{0,17}$/.test(customer) || "" === from || "" === to) {
-      setError("Informe o cliente principal e as duas datas.");
+    if (
+      false === /^[1-9][0-9]{0,17}$/.test(customer) ||
+      "" === from ||
+      "" === to ||
+      "" === square
+    ) {
+      setError("Informe o cliente principal, a praça do pedido e as duas datas.");
 
       return;
     }
@@ -513,11 +545,16 @@ function NewCommission({ done }: { done: () => void }) {
     setBusy(true);
 
     try {
-      const params = new URLSearchParams({ customer, from, to });
-      const [available, pending] = await Promise.all([
+      const params = new URLSearchParams({ customer, from, to, square, mode });
+      const [available, pending, obligations] = await Promise.all([
         api<{ items: AvailableOrder[] }>(`/winthor/orders/available?${params}`),
         api<Page<Adjustment>>(`/adjustments?available=1&customer=${customer}`),
+        api<CommissionChecks>("/commissions/checks", {
+          method: "POST",
+          body: JSON.stringify({ customerCode: customer, mode }),
+        }),
       ]);
+      setChecks(obligations);
       setOrders(available.items);
       setAdjustments(pending);
       setAdjustmentPage(1);
@@ -572,10 +609,17 @@ function NewCommission({ done }: { done: () => void }) {
 
       const result = await api<CalculationPreview>("/commissions/preview", {
         method: "POST",
-        body: JSON.stringify({ orderIds: ids, adjustmentIds: [], mode }),
+        body: JSON.stringify({
+          orderIds: ids,
+          adjustmentIds: [],
+          mode,
+          returnTransactions: selectedReturns,
+          square: Number(square),
+        }),
       });
       setOrderIds(ids);
       setPreview(result);
+      setChecks(result.checks);
     } catch (exception) {
       setError((exception as Error).message);
     } finally {
@@ -612,6 +656,9 @@ function NewCommission({ done }: { done: () => void }) {
               adjustmentIds: [],
               ruleVersion: preview?.calculation.rule.version,
               expectedAdjustmentIds: preview?.adjustmentIds,
+              expectedChecksFingerprint: preview?.checks.fingerprint,
+              returnTransactions: selectedReturns,
+              square: Number(square),
               reason: fields.get("reason"),
             }),
           });
@@ -621,8 +668,9 @@ function NewCommission({ done }: { done: () => void }) {
       }}
     >
       <p className="form-description">
-        Informe o cliente principal e o período para buscar pedidos faturados no Winthor. Selecione
-        os pedidos, simule e registre a comissão. Um usuário com perfil Financeiro poderá aprová-la.
+        Informe o cliente principal, a praça dos pedidos e o período para buscar no Winthor.
+        Selecione os pedidos, simule e registre a comissão. Um usuário com perfil Financeiro poderá
+        aprová-la.
       </p>
       <div className="form-grid">
         <label>
@@ -673,18 +721,53 @@ function NewCommission({ done }: { done: () => void }) {
             disabled={busy}
             onChange={(event) => {
               setMode(event.target.value);
-              setPreview(undefined);
+              setSquare("");
+              clearSearch();
             }}
           >
             <option value="normal">Comissão normal</option>
             <option value="atg">Autoagenciamento (ATG / PTABELA)</option>
           </select>
         </label>
+        <label>
+          Praça dos pedidos
+          <select
+            value={square}
+            required
+            disabled={busy}
+            onChange={(event) => {
+              setSquare(event.target.value);
+              clearSearch();
+            }}
+          >
+            <option value="">Selecione a praça</option>
+            {squares
+              .filter((item) => "atg" === mode || "pscf" === item.type)
+              .map((item) => (
+                <option
+                  key={item.code}
+                  value={item.code}
+                  disabled={null === item.psdRegion || null === item.pscfRegion}
+                >
+                  {item.code} · {item.name} {item.type.toUpperCase()}
+                  {null === item.psdRegion ? " · Pareamento pendente" : ""}
+                </option>
+              ))}
+          </select>
+        </label>
       </div>
+      {undefined !== chosenSquare && (
+        <p className="form-description">
+          Praça do pedido: {chosenSquare.code} · {chosenSquare.name}{" "}
+          {chosenSquare.type.toUpperCase()}. Comparação: PSD (Revenda) {chosenSquare.psdRegion} /
+          PSCF (Consumidor Final) {chosenSquare.pscfRegion}. O filtro usa a praça registrada no
+          pedido.
+        </p>
+      )}
       <button
         type="button"
         className="button secondary"
-        disabled={true === busy || "" === customer || "" === from || "" === to}
+        disabled={true === busy || "" === customer || "" === from || "" === to || "" === square}
         onClick={search}
       >
         {true === busy ? "Processando…" : "Buscar pedidos no Winthor"}
@@ -742,7 +825,7 @@ function NewCommission({ done }: { done: () => void }) {
                 </strong>
                 <small>
                   {"" === order.orderDate ? "Data indisponível" : date(order.orderDate)} · Filial{" "}
-                  {order.branch} · {money(order.total)}
+                  {order.branch} · Praça {order.square} · {money(order.total)}
                 </small>
                 {null !== order.priceContext && (
                   <>
@@ -784,22 +867,26 @@ function NewCommission({ done }: { done: () => void }) {
       )}
       {null !== adjustments && (
         <fieldset>
-          <legend>Deduções pendentes do cliente principal (automáticas)</legend>
-          {adjustments.items.map((adjustment) => (
-            <div className="checkbox-row" key={adjustment.id}>
-              <span>
-                <strong>
-                  {adjustment.type === "return"
-                    ? "Devolução"
-                    : adjustment.type === "cancellation"
-                      ? "Cancelamento"
-                      : "Débito"}{" "}
-                  · {money(adjustment.amount)}
-                </strong>
-                <small>{adjustment.reason}</small>
-              </span>
-            </div>
-          ))}
+          <legend>Deduções já registradas (automáticas)</legend>
+          {adjustments.items
+            .filter(
+              (adjustment) => "return" !== adjustment.type || null === adjustment.sourceSnapshot,
+            )
+            .map((adjustment) => (
+              <div className="checkbox-row" key={adjustment.id}>
+                <span>
+                  <strong>
+                    {adjustment.type === "return"
+                      ? "Devolução"
+                      : adjustment.type === "cancellation"
+                        ? "Cancelamento"
+                        : "Débito"}{" "}
+                    · {money(adjustment.amount)}
+                  </strong>
+                  <small>{adjustment.reason}</small>
+                </span>
+              </div>
+            ))}
           {0 === adjustments.items.length && <p className="muted">Sem deduções pendentes.</p>}
           <Pagination page={adjustmentPage} total={adjustments.total} change={loadAdjustments} />
         </fieldset>
@@ -812,6 +899,14 @@ function NewCommission({ done }: { done: () => void }) {
       >
         {true === busy ? "Processando…" : "Simular comissão"}
       </button>
+      <CommissionChecksPanel
+        checks={checks}
+        selectedReturns={selectedReturns}
+        onSelect={(transactions) => {
+          setSelectedReturns(transactions);
+          setPreview(undefined);
+        }}
+      />
       {undefined !== preview && (
         <section
           className="commission-review"

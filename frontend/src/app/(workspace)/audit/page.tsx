@@ -1,4 +1,4 @@
-import { AuditPage } from "@/components/collections";
+import { CommissionAuditPage } from "@/components/commission-audit";
 export default function Page() {
-  return <AuditPage />;
+  return <CommissionAuditPage />;
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity\Commission;
 
+use App\Entity\Adjustment\Adjustment;
 use App\Entity\Order\OrderSnapshot;
 use App\Entity\User\User;
 use App\Repository\Commission\CommissionRepository;
@@ -210,7 +211,7 @@ class Commission
 
     public function getOrders(): Collection
     {
-        return $this->orders;
+        return 'rejected' === $this->status ? $this->rejectedOrders : $this->orders;
     }
 
     public function setOrders(Collection $orders): self
@@ -220,11 +221,73 @@ class Commission
         return $this;
     }
 
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $rejectionReason = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?DateTimeImmutable $rejectedAt = null;
+
+    #[ORM\ManyToOne]
+    private ?User $rejectedBy = null;
+
+    #[ORM\ManyToMany(targetEntity: OrderSnapshot::class)]
+    #[ORM\JoinTable(name: 'commission_rejected_order')]
+    #[ORM\JoinColumn(name: 'commission_id', referencedColumnName: 'id')]
+    #[ORM\InverseJoinColumn(name: 'order_snapshot_id', referencedColumnName: 'id')]
+    private Collection $rejectedOrders;
+
+    #[ORM\ManyToMany(targetEntity: Adjustment::class)]
+    #[ORM\JoinTable(name: 'commission_rejected_adjustment')]
+    #[ORM\JoinColumn(name: 'commission_id', referencedColumnName: 'id')]
+    #[ORM\InverseJoinColumn(name: 'adjustment_id', referencedColumnName: 'id')]
+    private Collection $rejectedAdjustments;
+
+    public function getRejectionReason(): ?string
+    {
+        return $this->rejectionReason;
+    }
+
+    public function getRejectedAt(): ?DateTimeImmutable
+    {
+        return $this->rejectedAt;
+    }
+
+    public function getRejectedBy(): ?User
+    {
+        return $this->rejectedBy;
+    }
+
+    public function getRejectedAdjustments(): Collection
+    {
+        return $this->rejectedAdjustments;
+    }
+
+    /** @param list<OrderSnapshot> $orders
+     * @param list<Adjustment> $adjustments
+     */
+    public function reject(string $reason, User $actor, array $orders, array $adjustments): void
+    {
+        $this->status = 'rejected';
+        $this->rejectionReason = $reason;
+        $this->rejectedAt = new DateTimeImmutable();
+        $this->rejectedBy = $actor;
+
+        foreach ($orders as $order) {
+            $this->rejectedOrders->add($order);
+        }
+
+        foreach ($adjustments as $adjustment) {
+            $this->rejectedAdjustments->add($adjustment);
+        }
+    }
+
     public function __construct()
     {
         $this->code = 'DTS-'.strtoupper(bin2hex(random_bytes(8)));
         $this->createdAt = new DateTimeImmutable();
         $this->orders = new ArrayCollection();
+        $this->rejectedOrders = new ArrayCollection();
+        $this->rejectedAdjustments = new ArrayCollection();
     }
 
     public function addOrder(OrderSnapshot $order): void

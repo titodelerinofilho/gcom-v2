@@ -12,6 +12,8 @@ final class InMemoryMovementGateway implements MovementGatewayInterface
 
     public static array $returnRows = [];
 
+    public static array $overdueRows = [];
+
     public function cancellations(string $customer, string $from, string $to): array
     {
         return array_merge(...array_values(self::$cancelled));
@@ -19,12 +21,12 @@ final class InMemoryMovementGateway implements MovementGatewayInterface
 
     public function overdue(string $customer): array
     {
-        return [];
+        return self::$overdueRows;
     }
 
     public function returns(string $customer, bool $atg, ?string $transaction = null): array
     {
-        return self::$returnRows;
+        return array_values(array_filter(self::$returnRows, static fn (array $row): bool => null === $transaction || false === isset($row['NUMTRANSENT']) || (string) $row['NUMTRANSENT'] === $transaction));
     }
 
     public function cancelledOrder(string $number): array

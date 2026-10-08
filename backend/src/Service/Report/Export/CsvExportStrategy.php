@@ -23,7 +23,11 @@ final readonly class CsvExportStrategy implements ReportFormatStrategyInterface
 
         try {
             fwrite($out, '﻿');
+            fputcsv($out, ['Relatório', $context->title], ';', '"', '');
+            fputcsv($out, ['Gerado em', $context->generatedAt], ';', '"', '');
+            fputcsv($out, ['Dados preservados em', $context->savedAt ?? $context->generatedAt], ';', '"', '');
             fputcsv($out, array_values($columns), ';', '"', '');
+
             foreach ($this->rows->rows($context) as $row) {
                 $values = array_map(static fn ($value) => 1 === preg_match('/^[=+\-@\t\r]/', (string) $value) ? "'".$value : $value, array_values($row));
                 fputcsv($out, $values, ';', '"', '');

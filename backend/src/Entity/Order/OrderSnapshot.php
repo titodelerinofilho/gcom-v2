@@ -101,6 +101,15 @@ class OrderSnapshot
         }
     }
 
+    public function releaseRejectedCommission(): void
+    {
+        if (null === $this->commission || 'rejected' !== $this->commission->getStatus()) {
+            throw new \App\Exception\Business\BusinessException('Somente uma comissão reprovada pode liberar o pedido.', 409);
+        }
+
+        $this->commission = null;
+    }
+
     public function assignCommission(Commission $commission): void
     {
         if (null !== $this->commission) {

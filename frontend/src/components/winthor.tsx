@@ -4,6 +4,7 @@ import { api, money } from "@/lib/api";
 import { Heading } from "./collections";
 import { allowed, useUser } from "./shell";
 import { Empty, ErrorNotice } from "./ui";
+import { WinthorBrand } from "./winthor-brand";
 
 type Row = Record<string, unknown>;
 export function WinthorPage() {
@@ -72,6 +73,7 @@ export function WinthorPage() {
   const resultKind = queried?.kind ?? kind;
   return (
     <>
+      <WinthorBrand />
       <Heading
         eyebrow="INTEGRAÇÃO WINTHOR"
         title="Consultas da operação"

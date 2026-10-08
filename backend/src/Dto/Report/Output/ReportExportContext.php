@@ -19,6 +19,9 @@ final readonly class ReportExportContext
         public array $columns,
         public string $title,
         public string $criteria,
+        public ?array $snapshotRows = null,
+        public ?string $savedAt = null,
+        public string $generatedAt = '',
     ) {
     }
 }

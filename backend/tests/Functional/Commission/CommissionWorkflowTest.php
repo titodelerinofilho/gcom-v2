@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Functional\Commission;
 
 use App\Entity\User\User;
+use App\Tests\Double\Winthor\InMemoryMovementGateway;
+use App\Tests\Double\Winthor\InMemoryOrderGateway;
 use Doctrine\ORM\EntityManagerInterface;
 use RuntimeException;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -18,8 +20,11 @@ final class CommissionWorkflowTest extends WebTestCase
 
     protected function setUp(): void
     {
-        \App\Tests\Double\Winthor\InMemoryMovementGateway::$cancelled = [];
-        \App\Tests\Double\Winthor\InMemoryMovementGateway::$returnRows = [];
+        InMemoryMovementGateway::$cancelled = [];
+        InMemoryMovementGateway::$returnRows = [];
+        InMemoryMovementGateway::$overdueRows = [];
+        InMemoryOrderGateway::$headers = [];
+        InMemoryOrderGateway::$inspections = [];
         $this->browser = self::createClient();
         $em = self::getContainer()->get(EntityManagerInterface::class);
         $db = $em->getConnection();
@@ -41,6 +46,10 @@ final class CommissionWorkflowTest extends WebTestCase
 
     private function call(string $method, string $path, array $data = []): array
     {
+        if ('POST' === $method && true === in_array($path, ['/commissions', '/commissions/preview'], true) && false === array_key_exists('square', $data)) {
+            $data['square'] = 562;
+        }
+
         $this->browser->request('GET', '/api/csrf');
         $csrf = json_decode($this->browser->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR)['csrfToken'];
         $this->browser->request($method, '/api'.$path, server: ['CONTENT_TYPE' => 'application/json', 'HTTP_X_CSRF_TOKEN' => $csrf], content: 'GET' === $method ? null : json_encode($data, \JSON_THROW_ON_ERROR));
@@ -62,6 +71,276 @@ final class CommissionWorkflowTest extends WebTestCase
         self::assertResponseStatusCodeSame(201);
 
         return $result;
+    }
+
+    public function testSquareIsRequiredAndNormalCannotAcceptPsdEvenThroughDirectApiCalls(): void
+    {
+        $this->login('operator');
+        $catalog = $this->call('GET', '/commissions/squares');
+        self::assertCount(12, $catalog);
+        $this->call('GET', '/winthor/orders/available?customer=100&from=2026-10-01&to=2026-10-07');
+        self::assertResponseStatusCodeSame(422);
+        $this->call('GET', '/winthor/orders/available?customer=100&from=2026-10-01&to=2026-10-07&square=573&mode=normal');
+        self::assertResponseStatusCodeSame(409);
+        InMemoryOrderGateway::$headers['123'] = ['CODPRACA' => 573, 'NUMREGIAO' => 1];
+        $order = $this->call('POST', '/orders/import', ['orderNumber' => '123']);
+        $this->call('POST', '/commissions/preview', ['orderIds' => [$order['id']], 'square' => null]);
+        self::assertResponseStatusCodeSame(422);
+        foreach ([562, 573] as $square) {
+            $this->call('POST', '/commissions/preview', ['orderIds' => [$order['id']], 'square' => $square]);
+            self::assertResponseStatusCodeSame(409);
+            $this->call('POST', '/commissions', ['orderIds' => [$order['id']], 'square' => $square, 'ruleVersion' => 1]);
+            self::assertResponseStatusCodeSame(409);
+        }
+        $preview = $this->call('POST', '/commissions/preview', ['orderIds' => [$order['id']], 'square' => 573, 'mode' => 'atg']);
+        self::assertResponseIsSuccessful();
+        self::assertSame(573, $preview['calculation']['square']);
+        $created = $this->call('POST', '/commissions', ['orderIds' => [$order['id']], 'square' => 573, 'mode' => 'atg', 'ruleVersion' => 1]);
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame('atg', $created['mode']);
+    }
+
+    public function testLiveSquareAndCustomerLinkAreRecheckedAfterSimulation(): void
+    {
+        $this->login('operator');
+        $order = $this->call('POST', '/orders/import', ['orderNumber' => '123']);
+        $preview = $this->call('POST', '/commissions/preview', ['orderIds' => [$order['id']], 'square' => 562]);
+        self::assertResponseIsSuccessful();
+        InMemoryOrderGateway::$headers['123'] = ['CODPRACA' => 573];
+        $this->call('POST', '/commissions', ['orderIds' => [$order['id']], 'square' => 562, 'ruleVersion' => 1]);
+        self::assertResponseStatusCodeSame(409);
+        InMemoryOrderGateway::$headers['123'] = ['COMMISSION_REVENDA' => null];
+        $this->call('POST', '/commissions', ['orderIds' => [$order['id']], 'square' => 562, 'ruleVersion' => 1]);
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame(0, (int) self::getContainer()->get(EntityManagerInterface::class)->getConnection()->fetchOne('SELECT COUNT(*) FROM commission'));
+    }
+
+    public function testSelectedSquareControlsPriceComparisonWithoutChangingTheOrderRegion(): void
+    {
+        $this->login('operator');
+        $connection = self::getContainer()->get(EntityManagerInterface::class)->getConnection();
+        $settings = json_decode($connection->fetchOne('SELECT settings FROM commission_rule WHERE id = 1'), true, flags: \JSON_THROW_ON_ERROR);
+        $settings['priceContexts'][] = ['branch' => '*', 'orderRegion' => 6, 'psdRegion' => 5, 'pscfRegion' => 6];
+        $connection->executeStatement('INSERT INTO commission_rule (settings, reason, created_at) VALUES (:settings, :reason, CURRENT_TIMESTAMP)', ['settings' => json_encode($settings, \JSON_THROW_ON_ERROR), 'reason' => 'Pareamento MA configurado para teste']);
+        InMemoryOrderGateway::$headers['123'] = ['CODPRACA' => 563, 'NUMREGIAO' => 2];
+        $order = $this->call('POST', '/orders/import', ['orderNumber' => '123']);
+        $preview = $this->call('POST', '/commissions/preview', ['orderIds' => [$order['id']], 'square' => 563]);
+        self::assertResponseIsSuccessful();
+        self::assertSame('220.00', $preview['gross']);
+        $context = $preview['calculation']['items'][0]['context'];
+        self::assertSame(2, $context['orderRegion']);
+        self::assertSame(5, $context['psdRegion']);
+        self::assertSame(6, $context['pscfRegion']);
+        self::assertSame(563, $context['comparisonSquare']);
+        $created = $this->call('POST', '/commissions', ['orderIds' => [$order['id']], 'square' => 563, 'ruleVersion' => 2]);
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame('220.00', $created['grossAmount']);
+        $saved = $this->call('GET', '/commissions/'.$created['id']);
+        self::assertSame(563, $saved['calculation']['square']);
+        self::assertSame(2, $saved['orders'][0]['header']['NUMREGIAO']);
+    }
+
+    public function testOperatorSelectsReturnsAndOverdueTitlesAreInformational(): void
+    {
+        $this->login('operator');
+        $order = $this->call('POST', '/orders/import', ['orderNumber' => '456']);
+        InMemoryMovementGateway::$returnRows = [[
+            'NUMTRANSENT' => '901', 'PRINCIPAL' => '100', 'CODCLI' => '200', 'CLIENTE' => 'Cliente vinculado',
+            'CODFILIAL' => '1', 'NUMREGIAO' => 2, 'CODPROD' => '200', 'NUMPED' => '123', 'NUMNOTA' => '900',
+            'QT' => '1', 'PUNIT' => '400', 'COMMISSION_RETURN_PRICES' => ['1' => '350'], 'MOVEMENT_DATE' => '2026-10-01',
+        ]];
+        InMemoryMovementGateway::$overdueRows = [[
+            'CODCLI' => '200', 'CLIENTE' => 'Cliente vinculado', 'NUMNOTA' => '800', 'NUMTRANSVENDA' => '700',
+            'PREST' => '1', 'DUE_DATE' => '2026-09-01', 'ATRASO' => 37, 'CODCOB' => 'ECOB', 'VALOR' => '250.00',
+        ]];
+        $this->call('POST', '/commissions/checks', ['customerCode' => '']);
+        self::assertResponseStatusCodeSame(422);
+        $checked = $this->call('POST', '/commissions/checks', ['customerCode' => '100']);
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $checked['returns']);
+        self::assertCount(1, $checked['overdueTitles']);
+
+        $input = ['orderIds' => [$order['id']], 'returnTransactions' => []];
+        $preview = $this->call('POST', '/commissions/preview', $input);
+        self::assertResponseIsSuccessful();
+        self::assertSame('0.00', $preview['deductions']);
+        self::assertSame('250.00', $preview['checks']['overdueTotal']);
+        self::assertSame('200', $preview['checks']['overdueTitles'][0]['customerCode']);
+        self::assertSame('901', $preview['checks']['returns'][0]['transaction']);
+        $db = self::getContainer()->get(EntityManagerInterface::class)->getConnection();
+        self::assertSame(0, (int) $db->fetchOne('SELECT COUNT(*) FROM adjustment'));
+
+        $selected = $this->call('POST', '/commissions/preview', [...$input, 'returnTransactions' => ['901']]);
+        self::assertResponseIsSuccessful();
+        self::assertSame('40.00', $selected['deductions']);
+        self::assertSame('60.00', $selected['net']);
+        self::assertTrue($selected['checks']['returns'][0]['selected']);
+        $again = $this->call('POST', '/commissions/preview', [...$input, 'returnTransactions' => ['901']]);
+        self::assertSame($selected['adjustmentIds'], $again['adjustmentIds']);
+        $unselected = $this->call('POST', '/commissions/preview', $input);
+        self::assertSame('0.00', $unselected['deductions']);
+        self::assertSame('100.00', $unselected['net']);
+
+        $created = $this->call('POST', '/commissions', [...$input, 'returnTransactions' => ['901'], 'ruleVersion' => 1, 'expectedAdjustmentIds' => $selected['adjustmentIds'], 'expectedChecksFingerprint' => $selected['checks']['fingerprint']]);
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame('60.00', $created['netAmount']);
+        self::assertSame('250.00', $created['calculation']['checks']['overdueTotal']);
+        self::assertSame(1, (int) self::getContainer()->get(EntityManagerInterface::class)->getConnection()->fetchOne('SELECT COUNT(*) FROM adjustment'));
+        $another = $this->call('POST', '/orders/import', ['orderNumber' => '789']);
+        $this->call('POST', '/commissions/preview', ['orderIds' => [$another['id']], 'returnTransactions' => ['901']]);
+        self::assertResponseStatusCodeSame(409);
+    }
+
+    public function testReturnItemsCorrelateOnlyWithConfirmedPaymentsForTheSameCustomerAndBranch(): void
+    {
+        $this->login('operator');
+        $orders = [];
+        foreach (['123', '124'] as $number) {
+            $orders[] = $this->call('POST', '/orders/import', ['orderNumber' => $number])['id'];
+        }
+        $commission = $this->call('POST', '/commissions', ['orderIds' => $orders, 'ruleVersion' => 1]);
+        $next = $this->call('POST', '/orders/import', ['orderNumber' => '456']);
+        $return = ['NUMTRANSENT' => '901', 'NUMNOTA' => '1900', 'NUMPED' => '123', 'CODPROD' => '200', 'DESCRICAO' => 'Produto devolvido', 'QT' => '1', 'FINAL_CUSTOMER' => '100', 'CODFILIAL' => '1'];
+        InMemoryMovementGateway::$returnRows = [
+            $return,
+            [...$return, 'CODPROD' => '999'],
+            [...$return, 'NUMPED' => '456'],
+            [...$return, 'NUMPED' => '0'],
+            [...$return, 'FINAL_CUSTOMER' => '999'],
+            [...$return, 'CODFILIAL' => '2'],
+        ];
+
+        $pending = $this->call('POST', '/commissions/checks', ['customerCode' => '100']);
+        self::assertResponseIsSuccessful();
+        self::assertSame('not_found', $pending['returns'][0]['items'][0]['paymentStatus']);
+        $this->login('finance');
+        $this->call('POST', '/commissions/'.$commission['id'].'/approve');
+        self::assertResponseIsSuccessful();
+        $this->login('operator');
+        $approved = $this->call('POST', '/commissions/checks', ['customerCode' => '100']);
+        self::assertResponseIsSuccessful();
+        self::assertSame('not_found', $approved['returns'][0]['items'][0]['paymentStatus']);
+        $oldPreview = $this->call('POST', '/commissions/preview', ['orderIds' => [$next['id']], 'returnTransactions' => []]);
+        self::assertResponseIsSuccessful();
+        $this->login('finance');
+        $this->call('POST', '/commissions/'.$commission['id'].'/payment', ['amount' => $commission['netAmount'], 'paidAt' => date('Y-m-d')]);
+        self::assertResponseIsSuccessful();
+
+        $this->login('operator');
+        $paid = $this->call('POST', '/commissions/checks', ['customerCode' => '100']);
+        self::assertResponseIsSuccessful();
+        $items = $paid['returns'][0]['items'];
+        self::assertSame(['paid', 'not_found', 'not_found', 'unmatched', 'not_found', 'not_found'], array_column($items, 'paymentStatus'));
+        self::assertSame($commission['id'], $items[0]['paidCommissions'][0]['commissionId']);
+        self::assertSame($commission['code'], $items[0]['paidCommissions'][0]['commissionCode']);
+        self::assertSame(date('Y-m-d'), $items[0]['paidCommissions'][0]['paidAt']);
+        self::assertFalse($paid['returns'][0]['selected']);
+        self::assertNotSame($approved['fingerprint'], $paid['fingerprint']);
+        $otherCustomer = $this->call('POST', '/commissions/checks', ['customerCode' => '999']);
+        self::assertSame('not_found', $otherCustomer['returns'][0]['items'][0]['paymentStatus']);
+        $detail = $this->call('GET', '/commissions/'.$commission['id']);
+        self::assertCount(2, $detail['orders']);
+
+        $input = ['orderIds' => [$next['id']], 'ruleVersion' => 1, 'returnTransactions' => []];
+        $this->call('POST', '/commissions', [...$input, 'expectedChecksFingerprint' => $oldPreview['checks']['fingerprint']]);
+        self::assertResponseStatusCodeSame(409);
+        $fresh = $this->call('POST', '/commissions/preview', $input);
+        $created = $this->call('POST', '/commissions', [...$input, 'expectedChecksFingerprint' => $fresh['checks']['fingerprint']]);
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame('paid', $created['calculation']['checks']['returns'][0]['items'][0]['paymentStatus']);
+    }
+
+    public function testSelectedAtgReturnUsesAtgPercentageAndUnknownReturnsAreRejected(): void
+    {
+        $this->login('operator');
+        $order = $this->call('POST', '/orders/import', ['orderNumber' => '456']);
+        InMemoryMovementGateway::$returnRows = [[
+            'NUMTRANSENT' => '901', 'PRINCIPAL' => '100', 'CODCLI' => '200', 'CODFILIAL' => '1',
+            'NUMREGIAO' => 2, 'CODPROD' => '200', 'NUMPED' => '123', 'NUMNOTA' => '900',
+            'QT' => '1', 'PUNIT' => '400', 'COMMISSION_RETURN_PRICES' => ['1' => '350'],
+        ]];
+        $input = ['orderIds' => [$order['id']], 'mode' => 'atg'];
+        $this->call('POST', '/commissions/preview', [...$input, 'returnTransactions' => ['999']]);
+        self::assertResponseStatusCodeSame(409);
+        $preview = $this->call('POST', '/commissions/preview', [...$input, 'returnTransactions' => ['901']]);
+        self::assertResponseIsSuccessful();
+        self::assertSame('50.00', $preview['deductions']);
+        self::assertSame('100', $preview['adjustments'][0]['sourceSnapshot']['percentage']);
+    }
+
+    public function testChangedWinthorChecksRequireAnotherSimulation(): void
+    {
+        $this->login('operator');
+        $order = $this->call('POST', '/orders/import', ['orderNumber' => '123']);
+        $preview = $this->call('POST', '/commissions/preview', ['orderIds' => [$order['id']], 'returnTransactions' => []]);
+        InMemoryMovementGateway::$overdueRows = [[
+            'CODCLI' => '100', 'NUMTRANSVENDA' => '700', 'PREST' => '1', 'DUE_DATE' => '2026-09-01',
+            'ATRASO' => 37, 'CODCOB' => 'ECOB', 'VALOR' => '250.00',
+        ]];
+        $this->call('POST', '/commissions', ['orderIds' => [$order['id']], 'ruleVersion' => 1, 'expectedChecksFingerprint' => $preview['checks']['fingerprint'], 'returnTransactions' => []]);
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame(0, (int) self::getContainer()->get(EntityManagerInterface::class)->getConnection()->fetchOne('SELECT COUNT(*) FROM commission'));
+    }
+
+    public function testRejectionReleasesAssignmentsAndPreservesHistoryAfterReuse(): void
+    {
+        $this->login('operator');
+        $deduction = $this->call('POST', '/adjustments', ['customerCode' => '100', 'type' => 'debt', 'amount' => '20', 'reason' => 'Débito conferido pela operação', 'sourceReference' => 'Teste de débito']);
+        self::assertResponseStatusCodeSame(201);
+        $commission = $this->createCommission();
+        $id = $commission['id'];
+        $this->call('POST', '/commissions/'.$id.'/reject', ['reason' => 'Comissão precisa de nova conferência']);
+        self::assertResponseStatusCodeSame(403);
+        $this->login('finance');
+        $this->call('POST', '/commissions/'.$id.'/reject', ['reason' => '']);
+        self::assertResponseStatusCodeSame(422);
+        $rejected = $this->call('POST', '/commissions/'.$id.'/reject', ['reason' => 'Comissão precisa de nova conferência']);
+        self::assertResponseIsSuccessful();
+        self::assertSame('rejected', $rejected['status']);
+        self::assertSame('finance', $rejected['rejectedBy']);
+        $this->login('admin');
+        $available = $this->call('GET', '/winthor/orders/available?customer=100&from=2026-10-01&to=2026-10-07&square=562');
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $available['items']);
+        $new = $this->createCommission();
+        self::assertSame('80.00', $new['netAmount']);
+        $old = $this->call('GET', '/commissions/'.$id);
+        self::assertSame($commission['calculation'], $old['calculation']);
+        self::assertSame($id, $old['orders'][0]['commissionId']);
+        self::assertSame($deduction['id'], $old['adjustments'][0]['id']);
+        self::assertSame($id, $old['adjustments'][0]['commissionId']);
+        $report = $this->call('GET', '/reports/commissions?status=rejected&orderNumber=123');
+        self::assertSame(1, $report['total']);
+        self::assertSame('0', $report['amount']);
+        self::assertSame('Comissão precisa de nova conferência', $report['items'][0]['rejection_reason']);
+        $this->call('POST', '/commissions/'.$id.'/approve');
+        self::assertResponseStatusCodeSame(409);
+        $db = self::getContainer()->get(EntityManagerInterface::class)->getConnection();
+
+        try {
+            $db->executeStatement("UPDATE commission SET rejection_reason = 'Outro motivo alterado' WHERE id = :id", ['id' => $id]);
+            self::fail('Rejected history must be immutable');
+        } catch (\Doctrine\DBAL\Exception $exception) {
+            self::assertStringContainsString('immutable', $exception->getMessage());
+        }
+    }
+
+    public function testApprovedCommissionCanBeRejectedButPaidCommissionCannot(): void
+    {
+        $this->login('admin');
+        $commission = $this->createCommission();
+        $this->call('POST', '/commissions/'.$commission['id'].'/approve');
+        self::assertResponseIsSuccessful();
+        $rejected = $this->call('POST', '/commissions/'.$commission['id'].'/reject', ['reason' => 'Solicitada uma nova conferência']);
+        self::assertResponseIsSuccessful();
+        self::assertSame('rejected', $rejected['status']);
+        self::assertSame('admin', $rejected['approvedBy']);
+        $new = $this->createCommission();
+        $this->call('POST', '/commissions/'.$new['id'].'/approve');
+        $this->call('POST', '/commissions/'.$new['id'].'/payment', ['amount' => '100.00', 'paidAt' => date('Y-m-d')]);
+        self::assertResponseIsSuccessful();
+        $this->call('POST', '/commissions/'.$new['id'].'/reject', ['reason' => 'Solicitada uma nova conferência']);
+        self::assertResponseStatusCodeSame(409);
     }
 
     public function testHistoricalProductAllocationUsesSavedRuleWithoutWritingHistory(): void
@@ -102,17 +381,17 @@ final class CommissionWorkflowTest extends WebTestCase
     public function testAvailableOrdersRequirePrincipalAndPeriodAndExcludeCommissionedOrders(): void
     {
         $this->login('finance');
-        $this->call('GET', '/winthor/orders/available?customer=100&from=2026-10-01&to=2026-10-07');
+        $this->call('GET', '/winthor/orders/available?customer=100&from=2026-10-01&to=2026-10-07&square=562');
         self::assertResponseStatusCodeSame(403);
 
         $this->login('operator');
 
-        foreach (['', '?customer=100', '?customer=100&from=2026-02-30&to=2026-10-07', '?customer=100&from=2026-10-07&to=2026-10-01', '?customer=100&from=2024-01-01&to=2026-10-07'] as $filters) {
+        foreach (['', '?customer=100', '?customer=100&from=2026-02-30&to=2026-10-07&square=562', '?customer=100&from=2026-10-07&to=2026-10-01', '?customer=100&from=2024-01-01&to=2026-10-07&square=562'] as $filters) {
             $this->call('GET', '/winthor/orders/available'.$filters);
             self::assertResponseStatusCodeSame(422);
         }
 
-        $result = $this->call('GET', '/winthor/orders/available?customer=100&from=2026-10-01&to=2026-10-07');
+        $result = $this->call('GET', '/winthor/orders/available?customer=100&from=2026-10-01&to=2026-10-07&square=562');
         self::assertResponseIsSuccessful();
         self::assertSame('123', $result['items'][0]['orderNumber']);
         self::assertSame('900', $result['items'][0]['invoiceNumber']);
@@ -124,15 +403,15 @@ final class CommissionWorkflowTest extends WebTestCase
         self::assertSame(2, $result['items'][0]['priceContext']['pscfRegion']);
         self::assertSame('PVENDA3', $result['items'][0]['priceContext']['priceColumn']);
         self::assertNull($result['items'][0]['priceContextError']);
-        self::assertSame(['customer' => '100', 'from' => '2026-10-01', 'to' => '2026-10-07', 'square' => null], \App\Tests\Double\Winthor\InMemoryOrderGateway::$searchCalls[array_key_last(\App\Tests\Double\Winthor\InMemoryOrderGateway::$searchCalls)]);
+        self::assertSame(['customer' => '100', 'from' => '2026-10-01', 'to' => '2026-10-07', 'square' => 562, 'mode' => 'normal'], InMemoryOrderGateway::$searchCalls[array_key_last(InMemoryOrderGateway::$searchCalls)]);
 
         $this->call('POST', '/orders/import', ['orderNumber' => '123']);
         self::assertResponseStatusCodeSame(201);
-        $available = $this->call('GET', '/winthor/orders/available?customer=100&from=2026-10-01&to=2026-10-07');
+        $available = $this->call('GET', '/winthor/orders/available?customer=100&from=2026-10-01&to=2026-10-07&square=562');
         self::assertCount(1, $available['items']);
 
         $this->createCommission();
-        $assigned = $this->call('GET', '/winthor/orders/available?customer=100&from=2026-10-01&to=2026-10-07');
+        $assigned = $this->call('GET', '/winthor/orders/available?customer=100&from=2026-10-01&to=2026-10-07&square=562');
         self::assertResponseIsSuccessful();
         self::assertSame([], $assigned['items']);
     }
@@ -141,7 +420,7 @@ final class CommissionWorkflowTest extends WebTestCase
     {
         $this->login('operator');
         $original = $this->createCommission('123');
-        \App\Tests\Double\Winthor\InMemoryMovementGateway::$returnRows = [[
+        InMemoryMovementGateway::$returnRows = [[
             'PRINCIPAL' => '100', 'CODFILIAL' => '1', 'NUMREGIAO' => 2,
             'CODPROD' => '200', 'NUMPED' => '123', 'NUMNOTA' => '900',
             'QT' => '1', 'PUNIT' => '400', 'COMMISSION_RETURN_PRICES' => ['1' => '350'],
@@ -152,7 +431,7 @@ final class CommissionWorkflowTest extends WebTestCase
         self::assertCount(1, $return['sourceSnapshot']['items']);
         $this->call('POST', '/winthor/returns/import', ['customer' => '100', 'numtransent' => '901', 'atg' => true]);
         self::assertResponseStatusCodeSame(409);
-        \App\Tests\Double\Winthor\InMemoryMovementGateway::$cancelled['123'] = [[
+        InMemoryMovementGateway::$cancelled['123'] = [[
             'NUMPED' => '123', 'CODPROD' => '200', 'QT' => '-3', 'NUMTRANSVENDA' => '902',
         ]];
         $orders = [];
@@ -166,6 +445,11 @@ final class CommissionWorkflowTest extends WebTestCase
         self::assertSame('100.00', $preview['net']);
         self::assertCount(2, $preview['adjustmentIds']);
         self::assertSame(['return', 'cancellation'], array_column($preview['adjustments'], 'type'));
+        $this->call('POST', '/commissions/preview', ['orderIds' => $orders, 'returnTransactions' => []]);
+        self::assertResponseStatusCodeSame(409);
+        $complete = $this->call('POST', '/commissions/preview', ['orderIds' => $orders, 'returnTransactions' => ['901']]);
+        self::assertResponseIsSuccessful();
+        self::assertSame('100.00', $complete['deductions']);
         $again = $this->call('POST', '/commissions/preview', ['orderIds' => $orders]);
         self::assertSame($preview['adjustmentIds'], $again['adjustmentIds']);
         $next = $this->call('POST', '/commissions', ['orderIds' => $orders, 'ruleVersion' => 1, 'expectedAdjustmentIds' => $preview['adjustmentIds'], 'reason' => 'Estorno e devolução conferidos com a operação']);
@@ -205,7 +489,7 @@ final class CommissionWorkflowTest extends WebTestCase
     {
         $this->login('operator');
         $this->createCommission('123');
-        \App\Tests\Double\Winthor\InMemoryMovementGateway::$cancelled['123'] = [['CODPROD' => '200', 'QT' => '-1']];
+        InMemoryMovementGateway::$cancelled['123'] = [['CODPROD' => '200', 'QT' => '-1']];
         $order = $this->call('POST', '/orders/import', ['orderNumber' => '456']);
         $this->call('POST', '/commissions/preview', ['orderIds' => [$order['id']]]);
         self::assertResponseStatusCodeSame(409);
@@ -511,6 +795,126 @@ final class CommissionWorkflowTest extends WebTestCase
                 self::assertStringContainsString('immutable', $e->getMessage());
             }
         }
+    }
+
+    public function testSavedReportExportsKeepOriginalDataAfterTheCommissionChanges(): void
+    {
+        $this->login('operator');
+        $commission = $this->createCommission();
+        $this->browser->request('GET', '/api/reports/commissions.csv');
+        self::assertResponseIsSuccessful();
+        $id = $this->browser->getResponse()->headers->get('X-Report-Id');
+        self::assertMatchesRegularExpression('/^[a-f0-9]{32}$/D', $id);
+        self::assertResponseHeaderSame('X-Report-Url', '/reports/history/'.$id);
+        self::assertMatchesRegularExpression('/gcom-comissoes-\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.csv/', $this->browser->getResponse()->headers->get('Content-Disposition'));
+        $csv = $this->browser->getInternalResponse()->getContent();
+        self::assertStringContainsString('"Gerado em";', $csv);
+        self::assertStringContainsString('"Dados preservados em";', $csv);
+        self::assertStringContainsString('America/Fortaleza', $csv);
+        self::assertStringContainsString('Pendente', $csv);
+        self::assertStringNotContainsString(';pending;', $csv);
+
+        $this->login('finance');
+        $this->call('POST', '/commissions/'.$commission['id'].'/approve');
+        $this->call('POST', '/commissions/'.$commission['id'].'/payment', ['amount' => $commission['netAmount'], 'paidAt' => date('Y-m-d')]);
+        self::assertResponseIsSuccessful();
+        $saved = $this->call('GET', '/reports/history/'.$id);
+        self::assertSame(1, $saved['recordCount']);
+        self::assertSame('operator', $saved['createdBy']);
+        foreach (['csv', 'xlsx', 'pdf'] as $format) {
+            $this->browser->request('GET', '/api/reports/history/'.$id.'.'.$format);
+            self::assertResponseIsSuccessful();
+            self::assertMatchesRegularExpression('/gcom-comissoes-\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.'.$format.'/', $this->browser->getResponse()->headers->get('Content-Disposition'));
+            $content = $this->browser->getInternalResponse()->getContent();
+
+            if ('csv' === $format) {
+                self::assertStringContainsString('Pendente', $content);
+                self::assertStringNotContainsString(';Paga;', $content);
+            } elseif ('xlsx' === $format) {
+                $path = tempnam(sys_get_temp_dir(), 'gcom-history-test-');
+                file_put_contents($path, $content);
+                $zip = new ZipArchive();
+                self::assertTrue($zip->open($path));
+                $xml = $zip->getFromName('xl/worksheets/sheet1.xml');
+                self::assertStringContainsString('Pendente', $xml);
+                self::assertStringContainsString('Gerado em', $xml);
+                self::assertStringContainsString('Dados preservados em', $xml);
+                $zip->close();
+                unlink($path);
+            } else {
+                self::assertStringStartsWith('%PDF-', $content);
+            }
+        }
+        $history = $this->call('GET', '/reports/history');
+        self::assertSame(1, $history['total']);
+        $db = self::getContainer()->get(EntityManagerInterface::class)->getConnection();
+
+        try {
+            $db->executeStatement('UPDATE report_snapshot SET kind = :kind WHERE id = :id', ['kind' => 'adjustments', 'id' => $id]);
+            self::fail('Saved report data must be immutable');
+        } catch (\Doctrine\DBAL\Exception $exception) {
+            self::assertStringContainsString('immutable', $exception->getMessage());
+        }
+        $this->browser->restart();
+        $this->browser->request('GET', '/api/reports/history/'.$id.'.pdf');
+        self::assertResponseStatusCodeSame(401);
+    }
+
+    public function testCommissionAuditComparesOrdersAndInvoicesAndIncludesRelatedRejections(): void
+    {
+        InMemoryOrderGateway::$headers['123'] = ['COMMISSION_INVOICES' => [['NUMTRANSVENDA' => '700', 'NUMNOTA' => '900', 'VLTOTAL' => '1200', 'DTCANCEL' => null]]];
+        $this->login('operator');
+        $rejected = $this->createCommission();
+        $this->login('finance');
+        $this->call('POST', '/commissions/'.$rejected['id'].'/reject', ['reason' => 'Refazer a conferência da comissão']);
+        self::assertResponseIsSuccessful();
+        $this->login('operator');
+        $commission = $this->createCommission();
+        $this->login('finance');
+        $this->call('POST', '/commissions/'.$commission['id'].'/approve');
+        $this->call('POST', '/commissions/'.$commission['id'].'/payment', ['amount' => $commission['netAmount'], 'paidAt' => date('Y-m-d')]);
+        $this->call('POST', '/commissions/'.$commission['id'].'/payment/winthor', ['recnum' => '987654']);
+        self::assertResponseIsSuccessful();
+        $this->login('operator');
+        $this->call('POST', '/audit/commissions/'.$commission['id'].'/verify');
+        self::assertResponseStatusCodeSame(403);
+        $this->login('auditor');
+        $search = $this->call('GET', '/audit/commissions?query=123');
+        self::assertResponseIsSuccessful();
+        self::assertSame(1, $search['total']);
+        self::assertSame($commission['id'], $search['items'][0]['id']);
+        $unchanged = $this->call('POST', '/audit/commissions/'.$commission['id'].'/verify');
+        self::assertResponseIsSuccessful();
+        self::assertSame('unchanged', $unchanged['orders'][0]['status']);
+        self::assertTrue($unchanged['orders'][0]['invoiceBaselineAvailable']);
+        self::assertSame([], $unchanged['orders'][0]['changes']);
+        self::assertSame('987654', $unchanged['paymentCheck']['recnum']);
+        self::assertSame('unavailable', $unchanged['paymentCheck']['source']);
+        self::assertSame([], $unchanged['paymentCheck']['differences']);
+        $actions = array_column($unchanged['events'], 'action');
+        foreach (['commission.created', 'commission.rejected', 'commission.approved', 'commission.paid', 'payment.winthor_linked', 'commission.verified'] as $action) {
+            self::assertContains($action, $actions);
+        }
+
+        $source = (new InMemoryOrderGateway())->fetch('123');
+        $source['header']['VLFRETE'] = '50';
+        $source['items'][0]['QT'] = '1';
+        $invoices = $source['header']['COMMISSION_INVOICES'];
+        $invoices[0]['DTCANCEL'] = '2026-10-08';
+        InMemoryOrderGateway::$inspections['123'] = ['header' => $source['header'], 'items' => $source['items'], 'invoices' => $invoices];
+        $changed = $this->call('POST', '/audit/commissions/'.$commission['id'].'/verify');
+        self::assertResponseIsSuccessful();
+        self::assertSame('changed', $changed['orders'][0]['status']);
+        $fields = array_column($changed['orders'][0]['changes'], 'field');
+        foreach (['VLFRETE', 'QT', 'DTCANCEL'] as $field) {
+            self::assertContains($field, $fields);
+        }
+        self::assertSame('2026-10-08', $changed['orders'][0]['currentInvoices'][0]['cancelledAt']);
+        $detail = $this->call('GET', '/commissions/'.$commission['id']);
+        self::assertSame($commission['netAmount'], $detail['netAmount']);
+        self::assertSame('25.000000', $detail['calculation']['deductedFreight']);
+        $this->call('POST', '/audit/commissions/'.$rejected['id'].'/verify');
+        self::assertResponseStatusCodeSame(409);
     }
 
     public function testPdfXlsxAndCsvUseTheSameCommissionData(): void

@@ -30,7 +30,7 @@ final class ExportReportController extends AbstractController
         User $actor,
     ): BinaryFileResponse {
         $output = $this->service->export($kind, $format, $input, $actor);
-        $response = new BinaryFileResponse($output->path, headers: ['Content-Type' => $output->contentType, 'Cache-Control' => 'private, no-store']);
+        $response = new BinaryFileResponse($output->path, headers: ['Content-Type' => $output->contentType, 'Cache-Control' => 'private, no-store', 'X-Report-Id' => $output->reportId, 'X-Report-Url' => '/reports/history/'.$output->reportId]);
         $response->setContentDisposition(ResponseHeaderBag::DISPOSITION_ATTACHMENT, $output->filename);
         $response->deleteFileAfterSend();
 

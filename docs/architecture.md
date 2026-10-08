@@ -48,7 +48,7 @@ autor e memória de cálculo. Cada pedido só pode participar de uma comissão.
 Todos os débitos/devoluções/estornos pendentes do principal são deduzidos, como na baixa do legado.
 A simulação verifica cancelamentos integrais usando a memória original; fonte e dedução são únicas e imutáveis. Valores usam decimal exato, sem cálculo financeiro com float.
 
-Comissões seguem `pending → approved → paid`. Qualquer usuário com perfil Financeiro pode aprovar, inclusive quem criou a comissão.
+Comissões seguem `pending → approved → paid`; pendentes ou aprovadas sem pagamento podem terminar em `rejected`, com justificativa e auditoria. O histórico financeiro permanece imutável: tabelas de vínculos arquivados preservam pedidos e deduções da comissão reprovada, permitindo liberar os vínculos ativos para reutilização. Qualquer usuário com perfil Financeiro pode aprovar, inclusive quem criou a comissão.
 A confirmação registra data, valor integral, observação e autor. `RECNUM` é opcional
 e pode ser associado uma vez, posteriormente. Uma transação não pode ser usada em
 outra comissão. Isso não implementa rateio de pagamentos de várias comissões.
@@ -131,3 +131,7 @@ request preserva a geração de correlação. Auditoria financeira permanece obr
 Monolog emite JSON nos streams stdout/stderr por canal (`requests`, `responses`, `exceptions`, `database_queries`, `audit`), usando a configuração de logs do daemon Docker. Não cria arquivos de log na aplicação. PHP-FPM não acrescenta prefixos às linhas JSON. Canais de mensageria ficam reservados; coleta Loki/OTel e métricas Prometheus ainda não são implantadas.
 
 Veja a [matriz de consultas do legado](legacy-flow.md) para critérios de devolução, cancelamento e pendências de homologação.
+
+Relatórios exportados mantêm um snapshot imutável dos dados PostgreSQL em `Entity/Report/ReportSnapshot`, salvo pelo respectivo repository na mesma transação do evento de exportação. Os formatos recebem esses dados preservados através do contexto de exportação; downloads do histórico não executam consultas de relatórios sobre as comissões atuais. As duas datas (preservação e geração do arquivo) são apresentadas no horário de Fortaleza.
+
+A auditoria financeira utiliza `OrderGatewayInterface::inspect`, que lê o pedido, todos os itens e suas notas sem aplicar os filtros de elegibilidade para novas comissões. `CompareOrderSnapshotService` compara apenas dados preservados, ignora tabelas de preço auxiliares e normaliza diferenças de representação numérica. O resultado da conferência é registrado no histórico imutável de eventos, mantendo intactos snapshots, cálculo e pagamento.

@@ -1,4 +1,5 @@
 "use client";
+import { CommissionChecksPanel } from "./commission-checks";
 import { WinthorPayableReference } from "./winthor-payable-reference";
 import { CommissionMode } from "./commission-mode";
 import { CommissionSummary } from "./commission-summary";
@@ -14,7 +15,7 @@ export function CommissionDetail({ id }: { id: string }) {
   const user = useUser();
   const [data, setData] = useState<Commission>();
   const [error, setError] = useState("");
-  const [modal, setModal] = useState<"pay" | "link" | "approve">();
+  const [modal, setModal] = useState<"pay" | "link" | "approve" | "reject">();
   const [busy, setBusy] = useState(false);
   const [revision, setRevision] = useState(0);
   const [manualAmount, setManualAmount] = useState(false);
@@ -42,7 +43,7 @@ export function CommissionDetail({ id }: { id: string }) {
     const fields = Object.fromEntries(new FormData(e.currentTarget));
     try {
       await api(
-        `/commissions/${id}/${modal === "pay" ? "payment" : modal === "link" ? "payment/winthor" : "approve"}`,
+        `/commissions/${id}/${modal === "pay" ? "payment" : modal === "link" ? "payment/winthor" : modal === "reject" ? "reject" : "approve"}`,
         {
           method: "POST",
           body: JSON.stringify(modal === "pay" ? { ...fields, manualAmount } : fields),
@@ -82,6 +83,11 @@ export function CommissionDetail({ id }: { id: string }) {
             <Printer size={16} />
             Imprimir
           </button>
+          {allowed(user, "ROLE_FINANCE") && ["pending", "approved"].includes(data.status) && (
+            <button className="button danger" onClick={() => setModal("reject")}>
+              Reprovar comissão
+            </button>
+          )}
           {allowed(user, "ROLE_FINANCE") && data.status === "pending" && (
             <button className="button primary" onClick={() => setModal("approve")}>
               <Check size={17} />
@@ -116,6 +122,17 @@ export function CommissionDetail({ id }: { id: string }) {
           </span>
         )}
       </div>
+      {data.status === "rejected" && (
+        <section className="rejection-panel">
+          <h3>Comissão reprovada</h3>
+          <p>{data.rejectionReason}</p>
+          <small>
+            Por {data.rejectedBy} em {date(data.rejectedAt ?? "")} · Pedidos e deduções liberados
+            para um novo lançamento.
+          </small>
+        </section>
+      )}
+      <CommissionChecksPanel checks={data.calculation?.checks} />
       <CommissionSummary
         gross={data.grossAmount}
         deductions={data.deductions}
@@ -267,7 +284,9 @@ export function CommissionDetail({ id }: { id: string }) {
               ? "Confirmar pagamento"
               : modal === "link"
                 ? "Vincular contas a pagar · rotina 749"
-                : "Aprovar comissão"
+                : modal === "reject"
+                  ? "Reprovar comissão"
+                  : "Aprovar comissão"
           }
           close={() => {
             setModal(undefined);
@@ -276,7 +295,25 @@ export function CommissionDetail({ id }: { id: string }) {
         >
           <form className="form-stack" onSubmit={submit}>
             <ErrorNotice message={error} />
-            {modal === "approve" ? (
+            {modal === "reject" ? (
+              <>
+                <p className="form-description">
+                  A reprovação encerra esta comissão e libera seus pedidos e deduções para um novo
+                  lançamento. O histórico será preservado.
+                </p>
+                <label>
+                  Justificativa da reprovação
+                  <textarea
+                    name="reason"
+                    required
+                    minLength={10}
+                    maxLength={2000}
+                    rows={4}
+                    placeholder="Explique o motivo da reprovação."
+                  />
+                </label>
+              </>
+            ) : modal === "approve" ? (
               <p className="form-description">
                 Confirme a aprovação de {money(data.netAmount)} após conferir os pedidos, a memória
                 de cálculo e as deduções.
@@ -369,8 +406,11 @@ export function CommissionDetail({ id }: { id: string }) {
               </>
             )}
             <div className="form-actions">
-              <button className="button primary" disabled={busy}>
-                {busy ? "Processando…" : "Confirmar"}
+              <button
+                className={modal === "reject" ? "button danger" : "button primary"}
+                disabled={busy}
+              >
+                {busy ? "Processando…" : modal === "reject" ? "Confirmar reprovação" : "Confirmar"}
                 <Check size={17} />
               </button>
             </div>

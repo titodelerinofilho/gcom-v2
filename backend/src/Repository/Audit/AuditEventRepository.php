@@ -37,6 +37,16 @@ class AuditEventRepository extends ServiceEntityRepository
         $this->getEntityManager()->persist($event);
     }
 
+    /** @param list<string> $subjects
+     * @return list<AuditEvent>
+     */
+    public function findTimeline(array $subjects): array
+    {
+        return $this->createQueryBuilder('event')->leftJoin('event.actor', 'actor')->addSelect('actor')
+            ->where('event.subject IN (:subjects)')->setParameter('subjects', $subjects)
+            ->orderBy('event.createdAt', 'ASC')->addOrderBy('event.id', 'ASC')->getQuery()->getResult();
+    }
+
     public function savePending(): void
     {
         $this->getEntityManager()->flush();

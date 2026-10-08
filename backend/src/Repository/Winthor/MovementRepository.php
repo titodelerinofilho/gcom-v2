@@ -45,10 +45,10 @@ final readonly class MovementRepository implements MovementGatewayInterface
 
         if (null !== $transaction) {
             $parameters['transaction'] = $transaction;
+        }
 
-            if (true === $atg) {
-                $parameters['final_customer'] = $customer;
-            }
+        if (true === $atg) {
+            $parameters['final_customer'] = $customer;
         }
 
         return $this->statement->transaction(function () use ($sql, $parameters, $transaction): array {
@@ -127,9 +127,10 @@ final readonly class MovementRepository implements MovementGatewayInterface
     {
         $sql = <<<'SQL'
             SELECT * FROM (
-                SELECT P.NUMTRANSVENDA, P.PREST, P.NUMNOTA, P.CODCLI, C.CLIENTE,
+                SELECT P.NUMTRANSVENDA, P.PREST, S.NUMNOTA, P.CODCLI, C.CLIENTE,
                        P.CODFILIAL, P.CODCOB, B.BOLETO, P.VALOR,
                        TO_CHAR(P.DTVENC, 'YYYY-MM-DD') AS DUE_DATE,
+                       TO_CHAR(P.DTVENCORIG, 'YYYY-MM-DD') AS ORIGINAL_DUE_DATE,
                        NVL(F_QTDIASVENCIDOS(TRUNC(CASE
                            WHEN P.DTRECEBIMENTOPREVISTO IS NULL THEN P.DTVENC
                            WHEN TRUNC(P.DTRECEBIMENTOPREVISTO) > TRUNC(SYSDATE)
@@ -139,9 +140,10 @@ final readonly class MovementRepository implements MovementGatewayInterface
                            NVL(F.USADIAUTILFILIAL, 'N'), 'S'), 0) AS ATRASO
                 FROM PCPREST P
                 JOIN PCCLIENT C ON C.CODCLI = P.CODCLI
+                LEFT JOIN PCNFSAID S ON S.NUMTRANSVENDA = P.NUMTRANSVENDA
                 LEFT JOIN PCCOB B ON B.CODCOB = P.CODCOB
                 LEFT JOIN PCFILIAL F ON F.CODIGO = P.CODFILIAL
-                WHERE C.CODREVENDA = :customer
+                WHERE (C.CODREVENDA = :customer OR C.CODCLI = :principal_customer)
                   AND P.DTCANCEL IS NULL AND P.CODCOB <> 'CANC' AND P.DTPAG IS NULL
                   AND TRUNC(P.DTEMISSAO) >= DATE '2000-01-01'
                   AND TRUNC(P.DTEMISSAO) <= TRUNC(SYSDATE)
@@ -150,6 +152,6 @@ final readonly class MovementRepository implements MovementGatewayInterface
             ORDER BY T.DUE_DATE, T.NUMTRANSVENDA, T.PREST
             SQL;
 
-        return $this->statement->query($sql, ['customer' => $customer])->fetchAllAssociative();
+        return $this->statement->query($sql, ['customer' => $customer, 'principal_customer' => $customer])->fetchAllAssociative();
     }
 }

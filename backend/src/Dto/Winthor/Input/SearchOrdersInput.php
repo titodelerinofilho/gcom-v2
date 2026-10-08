@@ -20,11 +20,19 @@ final readonly class SearchOrdersInput
     #[Assert\Date(message: 'Data final inválida.')]
     public string $to;
 
+    #[Assert\NotNull(message: 'Selecione a praça do pedido.')]
+    #[Assert\Positive]
+    public ?int $square;
+
     public function __construct(
         string $customer,
         string $from,
         string $to,
+        ?int $square = null,
+        #[Assert\Choice(choices: ['normal', 'atg'])]
+        public string $mode = 'normal',
     ) {
+        $this->square = $square;
         $this->customer = trim($customer);
         $this->from = trim($from);
         $this->to = trim($to);

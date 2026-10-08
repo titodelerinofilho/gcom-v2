@@ -27,7 +27,8 @@ final readonly class GetCommissionService
     {
         $commission = $this->commissions->find($id) ?? throw new BusinessException('Comissão não encontrada.', 404);
         $payment = $this->payments->findForCommission($commission);
-        $adjustments = array_map(static fn (Adjustment $adjustment): AdjustmentOutput => new AdjustmentOutput($adjustment), $this->adjustments->findForCommission($commission));
+        $sources = 'rejected' === $commission->getStatus() ? $commission->getRejectedAdjustments()->toArray() : $this->adjustments->findForCommission($commission);
+        $adjustments = array_map(static fn (Adjustment $adjustment): AdjustmentOutput => new AdjustmentOutput($adjustment, 'rejected' === $commission->getStatus() ? $commission->getId() : null), $sources);
 
         return new CommissionOutput($commission, true, null === $payment ? null : new PaymentOutput($payment), $adjustments, true, $this->itemAllocation->allocate($commission->getCalculation()));
     }

@@ -5,6 +5,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { api, money } from "@/lib/api";
 import { Heading } from "./collections";
 import { Empty, ErrorNotice, Loading, Pagination } from "./ui";
+import { ReportHistory } from "./report-history";
 
 type Row = Record<string, string | number | null>;
 type Result = { items: Row[]; total: number; amount: string; page: number };
@@ -15,6 +16,7 @@ const labels: Record<string, string> = {
   pending: "Pendente",
   approved: "Aprovada",
   paid: "Paga",
+  rejected: "Reprovada",
   deducted: "Deduzido",
   debt: "Débito",
   return: "Devolução",
@@ -31,6 +33,41 @@ export function ReportsPage() {
   const [page, setPage] = useState(1);
   const [data, setData] = useState<Result>();
   const [error, setError] = useState("");
+  const [historyRevision, setHistoryRevision] = useState(0);
+  const [savedUrl, setSavedUrl] = useState("");
+  const [exporting, setExporting] = useState(false);
+
+  async function exportReport(format: string) {
+    setExporting(true);
+    setError("");
+    try {
+      const response = await fetch(
+        "/api/reports/" + query.kind + "." + format + "?" + query.params,
+        { credentials: "same-origin" },
+      );
+      if (false === response.ok) {
+        const body = await response.json();
+        throw new Error(body.error ?? body.message ?? "Não foi possível gerar o relatório.");
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download =
+        response.headers
+          .get("Content-Disposition")
+          ?.match(/filename="?([^";]+)"?/)?.[1]
+          ?.trim() ?? "gcom-relatorio-" + Date.now() + "." + format;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setSavedUrl(response.headers.get("X-Report-Url") ?? "");
+      setHistoryRevision((value) => value + 1);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setExporting(false);
+    }
+  }
   useEffect(() => {
     let active = true;
     api<Result>(`/reports/${query.kind}?${query.params}&page=${page}`)
@@ -108,6 +145,7 @@ export function ReportsPage() {
                 <option value="pending">Pendente</option>
                 <option value="approved">Aprovada</option>
                 <option value="paid">Paga</option>
+                <option value="rejected">Reprovada</option>
               </select>
             </label>
             {kind === "commissions" ? (
@@ -166,6 +204,11 @@ export function ReportsPage() {
         </form>
       </section>
       <ErrorNotice message={error} />
+      {"" !== savedUrl && (
+        <p className="notice">
+          Relatório salvo. <Link href={savedUrl}>Abrir o registro e baixar novamente</Link>
+        </p>
+      )}
       {data ? (
         <section className="panel">
           <div className="panel-heading">
@@ -178,13 +221,14 @@ export function ReportsPage() {
             </div>
             <div className="export-actions">
               {["pdf", "xlsx", "csv"].map((format) => (
-                <a
+                <button
                   key={format}
                   className="button secondary"
-                  href={`/api/reports/${query.kind}.${format}?${query.params}`}
+                  disabled={exporting}
+                  onClick={() => exportReport(format)}
                 >
                   Exportar {format.toUpperCase()}
-                </a>
+                </button>
               ))}
             </div>
           </div>
@@ -257,6 +301,7 @@ export function ReportsPage() {
                           </td>
                           <td>
                             {labels[String(row.status)]}
+                            {row.rejection_reason && <small>{String(row.rejection_reason)}</small>}
                             <small>{row.paid_at ?? "Pagamento não confirmado"}</small>
                           </td>
                         </>
@@ -314,6 +359,7 @@ export function ReportsPage() {
       ) : (
         !error && <Loading />
       )}
+      <ReportHistory revision={historyRevision} />
     </>
   );
 }

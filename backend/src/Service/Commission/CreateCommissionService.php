@@ -7,14 +7,11 @@ namespace App\Service\Commission;
 use App\Dto\Commission\Input\CreateCommissionInput;
 use App\Dto\Commission\Output\CommissionOutput;
 use App\Entity\Commission\Commission;
-use App\Entity\Order\OrderSnapshot;
 use App\Entity\User\User;
 use App\Exception\Business\BusinessException;
-use App\Integration\Winthor\OrderGatewayInterface;
 use App\Repository\Adjustment\AdjustmentRepository;
 use App\Repository\Commission\CommissionRepository;
 use App\Repository\Order\OrderSnapshotRepository;
-use App\Service\Adjustment\CancellationSynchronizerService;
 use App\Service\Audit\AuditRecorderService;
 use App\Service\CommissionRule\GetCurrentCommissionRuleService;
 use App\Service\Finance\MoneyService;
@@ -26,8 +23,8 @@ final readonly class CreateCommissionService
         private AuditRecorderService $audit,
         private GetCurrentCommissionRuleService $rules,
         private CommissionCalculatorService $calculator,
-        private OrderGatewayInterface $winthor,
-        private CancellationSynchronizerService $cancellations,
+        private ValidateCommissionOrdersService $eligibility,
+        private CheckCommissionObligationsService $checks,
         private AdjustmentRepository $adjustments,
         private OrderSnapshotRepository $orders,
     ) {
@@ -40,12 +37,24 @@ final readonly class CreateCommissionService
         $adjustmentIds = $input->adjustmentIds;
         $first = $this->orders->find($orderIds[0]);
 
-        if (null !== $first) {
-            $this->cancellations->sync($first->getCustomerCode(), $actor);
+        if (null === $first) {
+            throw new BusinessException('Pedido não encontrado.', 404);
+        }
+
+        $availableOrders = [];
+        foreach ($orderIds as $id) {
+            $availableOrders[] = $this->orders->find($id) ?? throw new BusinessException('Pedido não encontrado.', 404);
+        }
+        $this->eligibility->validate($availableOrders, $input->mode, $input->square);
+
+        $checks = $this->checks->check($first->getCustomerCode(), $input->mode, $actor, $input->returnTransactions);
+
+        if (null !== $input->expectedChecksFingerprint && $input->expectedChecksFingerprint !== $checks->fingerprint) {
+            throw new BusinessException('As informações de débitos ou devoluções mudaram. Refaça a simulação para conferir os valores atuais.', 409);
         }
 
         $reason = $input->reason;
-        $commission = $this->commissions->save(function () use ($orderIds, $adjustmentIds, $input, $reason, $actor) {
+        $commission = $this->commissions->save(function () use ($orderIds, $adjustmentIds, $input, $reason, $actor, $checks) {
             $rule = $this->rules->current();
 
             if ($input->ruleVersion !== $rule['version']) {
@@ -74,7 +83,7 @@ final readonly class CreateCommissionService
             }
 
             $this->adjustments->lockCustomer($orders[0]->getCustomerCode());
-            $pendingIds = $this->adjustments->pendingIds($orders[0]->getCustomerCode());
+            $pendingIds = $this->adjustments->pendingIds($orders[0]->getCustomerCode(), $input->returnTransactions);
 
             if (null !== $input->expectedAdjustmentIds && $input->expectedAdjustmentIds !== $pendingIds) {
                 throw new BusinessException('As deduções mudaram. Refaça a simulação.', 409);
@@ -96,9 +105,9 @@ final readonly class CreateCommissionService
                 $adjustments[] = $adjustment;
             }
 
-            $this->winthor->assertEligible(array_map(static fn (OrderSnapshot $order): string => $order->getOrderNumber(), $orders));
+            $this->eligibility->validate($orders, $input->mode, $input->square);
 
-            $calculation = $this->calculator->calculate($orders, $rule, $input->mode);
+            $calculation = [...$this->calculator->calculate($orders, $rule, $input->mode, $input->square), 'checks' => $checks->jsonSerialize()];
 
             $money = MoneyService::net($calculation['grossAmount'], array_map(static fn ($adjustment) => $adjustment->getAmount(), $adjustments));
 

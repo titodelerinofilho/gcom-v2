@@ -4,9 +4,14 @@ export function Brand() {
     <span className="brand-lockup">
       <Image src="/logo-dts.png" alt="DTS Distribuidora" width={118} height={37} priority />
       <span className="brand-divider" aria-hidden="true" />
-      <span className="gcom-wordmark">
-        GCOM<small>Gestão de comissões</small>
-      </span>
+      <Image
+        className="gcom-logo"
+        src="/logo-gcom.png"
+        alt="GCOM · Gestão de comissão"
+        width={150}
+        height={50}
+        priority
+      />
     </span>
   );
 }

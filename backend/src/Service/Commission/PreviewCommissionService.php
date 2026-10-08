@@ -7,13 +7,10 @@ namespace App\Service\Commission;
 use App\Dto\Adjustment\Output\AdjustmentOutput;
 use App\Dto\Commission\Input\PreviewCommissionInput;
 use App\Dto\Commission\Output\PreviewCommissionOutput;
-use App\Entity\Order\OrderSnapshot;
 use App\Entity\User\User;
 use App\Exception\Business\BusinessException;
-use App\Integration\Winthor\OrderGatewayInterface;
 use App\Repository\Adjustment\AdjustmentRepository;
 use App\Repository\Order\OrderSnapshotRepository;
-use App\Service\Adjustment\CancellationSynchronizerService;
 use App\Service\CommissionRule\GetCurrentCommissionRuleService;
 use App\Service\Finance\MoneyService;
 
@@ -22,8 +19,8 @@ final readonly class PreviewCommissionService
     public function __construct(
         private GetCurrentCommissionRuleService $rules,
         private CommissionCalculatorService $calculator,
-        private OrderGatewayInterface $winthor,
-        private CancellationSynchronizerService $cancellations,
+        private ValidateCommissionOrdersService $eligibility,
+        private CheckCommissionObligationsService $checks,
         private AdjustmentRepository $adjustments,
         private OrderSnapshotRepository $orders,
     ) {
@@ -43,9 +40,11 @@ final readonly class PreviewCommissionService
             $orders[] = $order;
         }
 
-        $this->cancellations->sync($orders[0]->getCustomerCode(), $actor);
+        $this->eligibility->validate($orders, $input->mode, $input->square);
 
-        $pendingIds = $this->adjustments->pendingIds($orders[0]->getCustomerCode());
+        $checks = $this->checks->check($orders[0]->getCustomerCode(), $input->mode, $actor, $input->returnTransactions);
+
+        $pendingIds = $this->adjustments->pendingIds($orders[0]->getCustomerCode(), $input->returnTransactions);
 
         $amounts = [];
         $adjustmentOutputs = [];
@@ -61,12 +60,10 @@ final readonly class PreviewCommissionService
             $adjustmentOutputs[] = new AdjustmentOutput($adjustment);
         }
 
-        $this->winthor->assertEligible(array_map(static fn (OrderSnapshot $order): string => $order->getOrderNumber(), $orders));
-
-        $calculation = $this->calculator->calculate($orders, $this->rules->current(), $input->mode);
+        $calculation = [...$this->calculator->calculate($orders, $this->rules->current(), $input->mode, $input->square), 'checks' => $checks->jsonSerialize()];
 
         $money = MoneyService::net($calculation['grossAmount'], $amounts);
 
-        return new PreviewCommissionOutput($pendingIds, $calculation, $money['gross'], $money['deductions'], $money['net'], $adjustmentOutputs);
+        return new PreviewCommissionOutput($pendingIds, $calculation, $money['gross'], $money['deductions'], $money['net'], $adjustmentOutputs, $checks);
     }
 }

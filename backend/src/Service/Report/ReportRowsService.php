@@ -16,7 +16,7 @@ final readonly class ReportRowsService
 
     public function rows(ReportExportContext $context): iterable
     {
-        $data = $this->repository->export(
+        $data = $context->snapshotRows ?? $this->repository->export(
             $context->from,
             $context->to,
             $context->filters,
@@ -36,6 +36,19 @@ final readonly class ReportRowsService
                     'normal' => 'Normal',
                     'unspecified' => 'Não informado',
                     default => $row['mode'],
+                };
+            }
+
+            foreach (['status', 'commission_status', 'state', 'type', 'verification'] as $key) {
+                if (false === array_key_exists($key, $row)) {
+                    continue;
+                }
+
+                $row[$key] = match ($row[$key]) {
+                    'pending' => 'Pendente', 'approved' => 'Aprovada', 'paid' => 'Paga', 'rejected' => 'Reprovada',
+                    'deducted' => 'Deduzido', 'debt' => 'Débito', 'return' => 'Devolução', 'cancellation' => 'Cancelamento',
+                    'none' => 'Sem vínculo Winthor', 'manual_reference' => 'Vínculo informado', 'winthor_lookup' => 'Conferido no Winthor',
+                    default => $row[$key],
                 };
             }
 

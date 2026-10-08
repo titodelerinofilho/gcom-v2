@@ -17,6 +17,7 @@ final readonly class PreviewCommissionOutput
         public string $deductions,
         public string $net,
         public array $adjustments,
+        public CommissionChecksOutput $checks,
     ) {
     }
 }

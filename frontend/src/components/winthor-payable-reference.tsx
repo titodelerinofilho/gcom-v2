@@ -1,4 +1,5 @@
 import { money, type Payment } from "@/lib/api";
+import { WinthorBrand } from "./winthor-brand";
 
 type PayableReference = NonNullable<Payment["winthor"]>;
 type PayableField = { key: string; label: string; format?: "money" | "date" };
@@ -88,12 +89,15 @@ export function WinthorPayableReference({ reference }: { reference: PayableRefer
   return (
     <section className="payable-reference" aria-label="Lançamento de contas a pagar no Winthor">
       <div className="payable-heading">
-        <div>
-          <p className="payable-routine">WINTHOR · ROTINA 749</p>
-          <h3>Lançamento de contas a pagar</h3>
-          <p className="payable-number">
-            Lançamento nº <strong>{reference.recnum}</strong>
-          </p>
+        <div className="winthor-heading">
+          <WinthorBrand />
+          <div>
+            <p className="payable-routine">WINTHOR · ROTINA 749</p>
+            <h3>Lançamento de contas a pagar</h3>
+            <p className="payable-number">
+              Lançamento nº <strong>{reference.recnum}</strong>
+            </p>
+          </div>
         </div>
         <span className={`payable-status ${true === consulted ? "consulted" : "manual"}`}>
           {true === consulted ? "Consultado no Winthor" : "Número informado"}

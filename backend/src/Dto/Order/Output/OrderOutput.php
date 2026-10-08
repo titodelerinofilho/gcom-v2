@@ -37,7 +37,7 @@ final readonly class OrderOutput implements JsonSerializable
     /** @var list<OrderItemOutput> */
     public array $items;
 
-    public function __construct(OrderSnapshot $order, private bool $detail = false)
+    public function __construct(OrderSnapshot $order, private bool $detail = false, ?int $historicalCommissionId = null)
     {
         $this->id = $order->getId();
         $this->orderNumber = $order->getOrderNumber();
@@ -51,7 +51,7 @@ final readonly class OrderOutput implements JsonSerializable
 
         $this->total = $order->getTotal();
         $this->capturedAt = $order->getCapturedAt()->format(\DATE_ATOM);
-        $this->commissionId = $order->getCommission()?->getId();
+        $this->commissionId = $historicalCommissionId ?? $order->getCommission()?->getId();
         $this->itemCount = $order->getItems()->count();
         $this->header = true === $detail ? $order->getHeader() : [];
         $this->items = true === $detail ? array_map(static fn (OrderItem $item): OrderItemOutput => new OrderItemOutput($item), $order->getItems()->toArray()) : [];

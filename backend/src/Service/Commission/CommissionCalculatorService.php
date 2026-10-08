@@ -20,7 +20,7 @@ final class CommissionCalculatorService
     }
 
     /** @param OrderSnapshot[] $orders */
-    public function calculate(array $orders, array $rule, string $mode = 'normal'): array
+    public function calculate(array $orders, array $rule, string $mode = 'normal', ?int $square = null): array
     {
         if (false === in_array($mode, ['normal', 'atg'], true)) {
             throw new BusinessException('Modalidade de comissão inválida.');
@@ -37,7 +37,7 @@ final class CommissionCalculatorService
             $header = $order->getHeader();
             $orderSales = BigDecimal::of(0);
             $orderReference = BigDecimal::of(0);
-            $context = $this->contexts->resolve($header, $rule);
+            $context = $this->contexts->resolve($header, $rule, $square);
             $freight = $freight->plus(MoneyService::decimal((string) ($header['VLFRETE'] ?? '0'), 6));
             foreach ($order->getItems() as $item) {
                 $raw = $item->getRaw();
@@ -120,6 +120,6 @@ final class CommissionCalculatorService
         $last = array_key_last($orderAmounts);
         $orderAmounts[$last]['grossAmount'] = (string) BigDecimal::of($orderAmounts[$last]['grossAmount'])->plus($gross->minus($allocated));
 
-        return $this->itemAllocation->allocate(['mode' => $mode, 'effectiveBasis' => $basis, 'percentageApplied' => $percentage, 'orders' => $orderAmounts, 'version' => 'configured-v2', 'rule' => $rule, 'sales' => (string) $sales, 'reference' => (string) $reference, 'freight' => (string) $freight, 'deductedFreight' => (string) $deductedFreight, 'baseAmount' => (string) $base, 'grossAmount' => MoneyService::positive((string) $gross), 'items' => $lines, 'rounding' => 'half_up_final_gross_2_decimals']);
+        return $this->itemAllocation->allocate(['square' => $square, 'mode' => $mode, 'effectiveBasis' => $basis, 'percentageApplied' => $percentage, 'orders' => $orderAmounts, 'version' => 'configured-v2', 'rule' => $rule, 'sales' => (string) $sales, 'reference' => (string) $reference, 'freight' => (string) $freight, 'deductedFreight' => (string) $deductedFreight, 'baseAmount' => (string) $base, 'grossAmount' => MoneyService::positive((string) $gross), 'items' => $lines, 'rounding' => 'half_up_final_gross_2_decimals']);
     }
 }

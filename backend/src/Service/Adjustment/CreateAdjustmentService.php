@@ -22,7 +22,7 @@ final readonly class CreateAdjustmentService
 
     public function create(CreateAdjustmentInput $input, User $actor): AdjustmentOutput
     {
-        $adjustment = (new Adjustment())
+        $adjustment = new Adjustment()
             ->setCustomerCode($input->customerCode)
             ->setType($input->type)
             ->setAmount(MoneyService::positive($input->amount))
