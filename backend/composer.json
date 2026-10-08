@@ -97,6 +97,6 @@
         "symfony/browser-kit": "7.4.*",
         "symfony/css-selector": "7.4.*"
     },
-    "name": "dts/gcom-backend",
+    "name": "gcom/backend",
     "description": "Gestão on-premise de comissões, pedidos e pagamentos Winthor"
 }

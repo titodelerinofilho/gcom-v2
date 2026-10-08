@@ -14,6 +14,7 @@ use App\Repository\Commission\CommissionRepository;
 use App\Repository\Order\OrderSnapshotRepository;
 use App\Service\Audit\AuditRecorderService;
 use App\Service\CommissionRule\GetCurrentCommissionRuleService;
+use App\Service\Enterprise\GetEnterpriseService;
 use App\Service\Finance\MoneyService;
 
 final readonly class CreateCommissionService
@@ -27,6 +28,7 @@ final readonly class CreateCommissionService
         private CheckCommissionObligationsService $checks,
         private AdjustmentRepository $adjustments,
         private OrderSnapshotRepository $orders,
+        private GetEnterpriseService $enterprise,
     ) {
     }
 
@@ -61,7 +63,7 @@ final readonly class CreateCommissionService
                 throw new BusinessException('A regra de cálculo mudou. Refaça a simulação antes de gerar a comissão.', 409);
             }
 
-            $commission = new Commission();
+            $commission = new Commission($this->enterprise->get()->commissionPrefix);
             $orders = [];
 
             foreach ($orderIds as $id) {

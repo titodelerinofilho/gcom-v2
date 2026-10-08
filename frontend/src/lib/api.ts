@@ -296,3 +296,14 @@ export type CalculationPreview = {
   deductions: string;
   net: string;
 };
+
+export type Enterprise = {
+  legalName: string;
+  tradeName: string;
+  cnpj: string;
+  email: string;
+  phone: string;
+  address: string;
+  commissionPrefix: string;
+  configured: boolean;
+};

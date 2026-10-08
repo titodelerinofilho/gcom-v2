@@ -34,11 +34,11 @@ final readonly class XlsxExportStrategy implements ReportFormatStrategyInterface
         $writer->openToFile($path);
 
         try {
-            $writer->setCreator('GCOM · DTS');
+            $writer->setCreator('GCOM');
             $writer->getCurrentSheet()->setName('commissions' === $kind ? 'Comissões' : 'Deduções');
 
             $style = new Style()->setFontBold()->setFontColor('FFFFFF')->setBackgroundColor('098A14');
-            $writer->addRow(new Row([new StringCell('GCOM · DTS — '.$title, $style), new StringCell($criteria, $style)]));
+            $writer->addRow(new Row([new StringCell('GCOM — '.$title, $style), new StringCell($criteria, $style)]));
             $writer->addRow(Row::fromValues(['Gerado em', $context->generatedAt]));
             $writer->addRow(Row::fromValues(['Dados preservados em', $context->savedAt ?? $context->generatedAt]));
             $writer->addRow(Row::fromValues(array_values($columns), $style));
