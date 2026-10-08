@@ -33,7 +33,7 @@ final class CommissionWorkflowTest extends WebTestCase
         if (!str_ends_with((string) $db->getDatabase(), '_test')) {
             throw new RuntimeException('Functional tests require a dedicated *_test database.');
         }
-        $db->executeStatement('TRUNCATE commission_rule, payment_link, order_item, order_snapshot, adjustment, commission, audit_event, app_user RESTART IDENTITY CASCADE');
+        $db->executeStatement('TRUNCATE enterprise, commission_rule, payment_link, order_item, order_snapshot, adjustment, commission, audit_event, app_user RESTART IDENTITY CASCADE');
         $db->executeStatement('INSERT INTO commission_rule (settings, reason, created_at) VALUES (:settings, :reason, CURRENT_TIMESTAMP)', ['settings' => json_encode(['percentage' => '80.0000', 'basis' => 'margin_psd', 'priceContexts' => [['branch' => '*', 'orderRegion' => 2, 'psdRegion' => 1, 'pscfRegion' => 2]], 'atgPercentage' => '80', 'returnPercentage' => '80', 'atgReturnPercentage' => '100', 'subtractFreight' => true, 'applyReferenceDiscount' => false]), 'reason' => 'Regra inicial validada para testes']);
         $hasher = self::getContainer()->get(UserPasswordHasherInterface::class);
         foreach (['operator' => 'ROLE_OPERATOR', 'finance' => 'ROLE_FINANCE', 'admin' => 'ROLE_ADMIN', 'auditor' => 'ROLE_AUDITOR'] as $name => $role) {
@@ -71,6 +71,19 @@ final class CommissionWorkflowTest extends WebTestCase
         self::assertResponseStatusCodeSame(201);
 
         return $result;
+    }
+
+    public function testEnterprisePrefixAppliesOnlyToNewCommissions(): void
+    {
+        $this->login('admin');
+        $first = $this->createCommission('123');
+        self::assertStringStartsWith('GCOM-', $first['code']);
+        $this->call('PUT', '/settings/enterprise', ['legalName' => 'Empresa Ltda', 'tradeName' => 'Empresa', 'commissionPrefix' => 'EMP']);
+        self::assertResponseIsSuccessful();
+        $second = $this->createCommission('124');
+        self::assertStringStartsWith('EMP-', $second['code']);
+        $preserved = $this->call('GET', '/commissions/'.$first['id']);
+        self::assertSame($first['code'], $preserved['code']);
     }
 
     public function testSquareIsRequiredAndNormalCannotAcceptPsdEvenThroughDirectApiCalls(): void

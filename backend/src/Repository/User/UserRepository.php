@@ -36,6 +36,11 @@ class UserRepository extends ServiceEntityRepository
         return $this->getEntityManager()->wrapInTransaction($operation);
     }
 
+    public function hasAdministrator(): bool
+    {
+        return false !== $this->getEntityManager()->getConnection()->fetchOne("SELECT id FROM app_user WHERE jsonb_exists(roles::jsonb, 'ROLE_ADMIN') LIMIT 1");
+    }
+
     public function store(User $entity): void
     {
         $this->getEntityManager()->persist($entity);

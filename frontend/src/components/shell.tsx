@@ -17,7 +17,7 @@ import {
   X,
   ArrowUpRight,
 } from "lucide-react";
-import { api, type User } from "@/lib/api";
+import { api, type User, type Enterprise } from "@/lib/api";
 import { ErrorNotice, Loading } from "./ui";
 const UserContext = createContext<User | null>(null);
 export function useUser() {
@@ -37,6 +37,7 @@ const nav = [
   { href: "/reports", label: "Relatórios", icon: ChartNoAxesCombined },
   { href: "/audit", label: "Auditoria", icon: ShieldCheck, role: "ROLE_AUDITOR" },
   { href: "/settings", label: "Cálculo da comissão", icon: SlidersHorizontal, role: "ROLE_ADMIN" },
+  { href: "/settings/enterprise", label: "Empresa", icon: SlidersHorizontal, role: "ROLE_ADMIN" },
   { href: "/users", label: "Usuários", icon: Users, role: "ROLE_ADMIN" },
 ];
 export function Shell({ children }: { children: React.ReactNode }) {
@@ -44,6 +45,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const path = pathname === "/dashboard" ? "/" : pathname;
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
+  const [enterprise, setEnterprise] = useState<Enterprise>();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -54,6 +56,25 @@ export function Shell({ children }: { children: React.ReactNode }) {
         else setError(e.message);
       });
   }, [router]);
+  useEffect(() => {
+    if (null === user) return;
+    let active = true;
+    const load = () => {
+      api<Enterprise>("/settings/enterprise")
+        .then((value) => {
+          if (true === active) setEnterprise(value);
+        })
+        .catch((e: Error) => {
+          if (true === active) setError(e.message);
+        });
+    };
+    load();
+    window.addEventListener("enterprise-updated", load);
+    return () => {
+      active = false;
+      window.removeEventListener("enterprise-updated", load);
+    };
+  }, [user]);
   async function logout() {
     try {
       await api("/logout", { method: "POST" });
@@ -144,7 +165,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               >
                 <Menu />
               </button>
-              <span>DTS</span>
+              <span>{enterprise?.tradeName ?? "GCOM"}</span>
               <span className="breadcrumb-slash">/</span>
               <strong>{nav.find((n) => n.href === path)?.label ?? "Comissão"}</strong>
             </div>

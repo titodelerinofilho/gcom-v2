@@ -1,4 +1,4 @@
-# GCOM · DTS
+# GCOM
 
 Nova aplicação on-premise, com API Symfony 7.4, PHP 8.4, Doctrine/PostgreSQL 17,
 integração Oracle por PDO e frontend Next.js 16 com TypeScript.
@@ -155,12 +155,9 @@ as consultas Oracle por um test double. Consulte [testes e operação](docs/oper
 
 ## Identidade visual
 
-A interface usa o verde `#098A14` do [site da DTS](https://www.dts.tec.br/),
-com neutros e variações suaves, incluindo navegação, botões, gráficos e login.
-A logo fornecida está em `frontend/public/logo-dts.png`, combinada com o nome **GCOM**
-e um divisor discreto no menu e no login. A mesma identidade aparece no PDF.
-[Prévia desktop](docs/screenshots/dashboard.png) · [Prévia mobile](docs/screenshots/mobile.png)
-— imagens com dados fictícios de homologação.
+A interface identifica o produto como **GCOM**. O nome da empresa aparece no workspace
+conforme o cadastro em Configurações → Empresa. O prefixo cadastrado vale somente para
+novas comissões; códigos e snapshots anteriores são preservados.
 
 ## Regras ainda sujeitas a homologação
 
@@ -197,3 +194,21 @@ lançamentos e baixas do GCOM são persistidos no PostgreSQL.
 
 Logs estruturados usam os canais Monolog em stdout/stderr; a configuração de rotação depende do daemon Docker.
 Consulte [operação e coleta de logs](docs/operations.md#logs-e-auditoria).
+
+## Imagens de distribuição e instalação
+
+O workflow `.github/workflows/publish.yml` valida o projeto e publica duas imagens
+privadas no GHCR, vinculadas a este repositório: `ghcr.io/titodelerinofilho/gcom-v2/backend`
+e `ghcr.io/titodelerinofilho/gcom-v2/frontend`. Tags `v*` publicam a versão e o commit;
+a execução manual publica a tag `sha-<commit completo>`. Publicação usa exclusivamente
+`GITHUB_TOKEN` automático com `packages: write`. As imagens suportam Linux amd64.
+
+O repositório independente `gcom-installer` contém o Compose de distribuição com
+imagens prontas e comandos `make install`, `make pull VERSION=...` e `make update VERSION=...`.
+Download de pacotes privados exige PAT GitHub classic com `read:packages` e acesso aos
+pacotes. PostgreSQL e backups usam volumes persistentes; atualização faz backup antes
+das migrations e só registra a nova versão após os healthchecks.
+
+A migration de empresa não altera comissões anteriores. Em instalações existentes,
+cadastre a empresa com `php bin/console app:enterprise:configure` ou na tela Empresa.
+Até o cadastro, a identificação e o prefixo de novas comissões usam `GCOM`.

@@ -281,9 +281,9 @@ class Commission
         }
     }
 
-    public function __construct()
+    public function __construct(string $prefix = 'GCOM')
     {
-        $this->code = 'DTS-'.strtoupper(bin2hex(random_bytes(8)));
+        $this->code = $prefix.'-'.strtoupper(bin2hex(random_bytes(8)));
         $this->createdAt = new DateTimeImmutable();
         $this->orders = new ArrayCollection();
         $this->rejectedOrders = new ArrayCollection();
