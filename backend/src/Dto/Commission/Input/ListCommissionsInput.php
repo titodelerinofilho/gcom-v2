@@ -8,7 +8,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 
 final readonly class ListCommissionsInput
 {
-    #[Assert\Choice(choices: ['pending', 'approved', 'paid'], message: 'Status inválido.')]
+    #[Assert\Choice(choices: ['pending', 'approved', 'paid', 'rejected'], message: 'Status inválido.')]
     public ?string $status;
 
     #[Assert\Positive]

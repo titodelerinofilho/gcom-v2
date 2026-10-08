@@ -151,6 +151,11 @@ class Adjustment
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $sourceSnapshot = null;
 
+    public function getSourceKey(): ?string
+    {
+        return $this->sourceKey;
+    }
+
     public function getSourceSnapshot(): ?array
     {
         return $this->sourceSnapshot;

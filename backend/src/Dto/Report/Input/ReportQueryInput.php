@@ -20,7 +20,7 @@ readonly class ReportQueryInput
     #[Assert\Regex(pattern: '/^[1-9][0-9]{0,17}$/D')]
     public ?string $orderNumber;
 
-    #[Assert\Choice(choices: ['pending', 'approved', 'paid'])]
+    #[Assert\Choice(choices: ['pending', 'approved', 'paid', 'rejected'])]
     public ?string $status;
 
     #[Assert\Choice(choices: ['normal', 'atg'])]

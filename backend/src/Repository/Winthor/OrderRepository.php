@@ -41,6 +41,26 @@ final readonly class OrderRepository implements OrderGatewayInterface
         }
     }
 
+    public function assertCommissionEligible(array $numbers, string $customer, string $mode, int $square): void
+    {
+        $this->assertEligible($numbers);
+        $customerFilter = 'normal' === $mode ? 'C.CODREVENDA = :customer' : 'NVL(C.CODREVENDA, C.CODCLI) = :customer';
+        $squareEligibility = 'normal' === $mode ? 'AND P.CODPRACA NOT IN (573, 539, 570, 1097, 1098, 1103)' : '';
+        $sql = <<<SQL
+            SELECT P.NUMPED FROM PCPEDC P
+            JOIN PCCLIENT C ON C.CODCLI = P.CODCLI
+            WHERE P.NUMPED = :order_number AND P.CODPRACA = :square
+              AND {$customerFilter}
+              {$squareEligibility}
+            SQL;
+
+        foreach ($numbers as $number) {
+            if (false === $this->statement->query($sql, ['order_number' => $number, 'square' => $square, 'customer' => $customer])->fetchOne()) {
+                throw new BusinessException('Pedido '.$number.' fora da praça ou do vínculo de cliente selecionado. Refaça a busca.', 409);
+            }
+        }
+    }
+
     public function fetch(string $orderNumber): array
     {
         if (1 !== preg_match('/^[1-9][0-9]{0,11}$/D', $orderNumber)) {
@@ -80,6 +100,7 @@ final readonly class OrderRepository implements OrderGatewayInterface
 
             $header['COMMISSION_PRINCIPAL'] = (string) $customer['PRINCIPAL'];
             $header['COMMISSION_FINAL_CUSTOMER_NAME'] = $customer['CLIENTE'];
+            $header['COMMISSION_INVOICES'] = $this->invoices($orderNumber);
 
             $itemsSql = <<<'SQL'
                 SELECT I.*, R.DESCRICAO
@@ -197,9 +218,41 @@ final readonly class OrderRepository implements OrderGatewayInterface
         });
     }
 
-    public function search(string $customer, string $from, string $to, ?int $square): array
+    public function inspect(string $orderNumber): array
+    {
+        return $this->statement->transaction(function () use ($orderNumber): array {
+            $headerSql = 'SELECT P.* FROM PCPEDC P WHERE P.NUMPED = :order_number';
+            $header = $this->statement->query($headerSql, ['order_number' => $orderNumber])->fetchAssociative();
+            $itemsSql = <<<'SQL'
+                SELECT I.*, R.DESCRICAO FROM PCPEDI I
+                LEFT JOIN PCPRODUT R ON R.CODPROD = I.CODPROD
+                WHERE I.NUMPED = :order_number
+                ORDER BY I.CODPROD, I.NUMSEQ
+                SQL;
+
+            return ['header' => false === $header ? null : $header,
+                'items' => $this->statement->query($itemsSql, ['order_number' => $orderNumber])->fetchAllAssociative(),
+                'invoices' => $this->invoices($orderNumber)];
+        });
+    }
+
+    private function invoices(string $orderNumber): array
     {
         $sql = <<<'SQL'
+            SELECT S.* FROM PCNFSAID S
+            WHERE S.NUMPED = :order_number
+               OR S.NUMTRANSVENDA IN (SELECT P.NUMTRANSVENDA FROM PCPEDC P WHERE P.NUMPED = :sale_order)
+            ORDER BY S.NUMTRANSVENDA
+            SQL;
+
+        return $this->statement->query($sql, ['order_number' => $orderNumber, 'sale_order' => $orderNumber])->fetchAllAssociative();
+    }
+
+    public function search(string $customer, string $from, string $to, ?int $square, ?string $mode = null): array
+    {
+        $customerFilter = 'normal' === $mode ? 'C.CODREVENDA = :customer' : 'NVL(C.CODREVENDA, C.CODCLI) = :customer';
+        $squareEligibility = 'normal' === $mode ? 'AND P.CODPRACA NOT IN (573, 539, 570, 1097, 1098, 1103)' : '';
+        $sql = <<<SQL
             SELECT P.NUMPED, P.CODFILIAL, P.NUMREGIAO, P.CODPRACA, P.CODPLPAG,
                    L.NUMPR AS COMMISSION_NUMPR,
                    P.VLTOTAL, P.VLFRETE, P.CODCLI, C.CLIENTE,
@@ -208,7 +261,8 @@ final readonly class OrderRepository implements OrderGatewayInterface
             FROM PCPEDC P
             JOIN PCCLIENT C ON C.CODCLI = P.CODCLI
             LEFT JOIN PCPLPAG L ON L.CODPLPAG = P.CODPLPAG
-            WHERE NVL(C.CODREVENDA, C.CODCLI) = :customer
+            WHERE {$customerFilter}
+              {$squareEligibility}
               AND P.CONDVENDA IN (1, 7) AND P.CODCOB <> 'ORDS'
               AND P.POSICAO = 'F' AND P.DTCANCEL IS NULL
               AND P.DATA >= TO_DATE(:date_from, 'YYYY-MM-DD')

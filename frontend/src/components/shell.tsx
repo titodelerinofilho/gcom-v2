@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { Brand } from "./brand";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
 import {
@@ -156,7 +157,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
             {children}
           </main>
           <footer className="app-footer">
-            DTS · GCOM<span>Rastreabilidade em cada etapa</span>
+            <Image
+              className="footer-gcom-logo"
+              src="/logo-gcom.png"
+              alt="GCOM"
+              width={90}
+              height={30}
+            />
+            <span>Rastreabilidade em cada etapa</span>
           </footer>
         </div>
       </div>

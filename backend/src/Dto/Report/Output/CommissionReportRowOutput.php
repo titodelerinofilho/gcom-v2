@@ -22,6 +22,12 @@ final readonly class CommissionReportRowOutput
 
     public string $created_at;
 
+    public ?string $rejection_reason;
+
+    public ?string $rejected_at;
+
+    public ?string $rejected_by;
+
     public ?string $routine;
 
     public ?string $reference;
@@ -54,6 +60,9 @@ final readonly class CommissionReportRowOutput
         $this->net_amount = (string) $row['net_amount'];
         $this->status = (string) $row['status'];
         $this->created_at = (string) $row['created_at'];
+        $this->rejection_reason = $row['rejection_reason'] ?? null;
+        $this->rejected_at = $row['rejected_at'] ?? null;
+        $this->rejected_by = $row['rejected_by'] ?? null;
         $this->routine = null === $row['routine'] ? null : (string) $row['routine'];
         $this->reference = null === $row['reference'] ? null : (string) $row['reference'];
         $this->verification = null === $row['verification'] ? null : (string) $row['verification'];

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Eye, EyeOff } from "lucide-react";
 import { api } from "@/lib/api";
 import { Brand } from "@/components/brand";
+import Image from "next/image";
+import { WinthorBrand } from "@/components/winthor-brand";
 import { ErrorNotice } from "@/components/ui";
 
 export default function Login() {
@@ -43,6 +45,7 @@ export default function Login() {
       <div className="access-content">
         <section className="access-introduction" aria-labelledby="access-title">
           <p className="access-kicker">VENDAS AGENCIADAS · WINTHOR</p>
+          <WinthorBrand />
           <h1 id="access-title">
             Comissões de
             <br />
@@ -92,7 +95,7 @@ export default function Login() {
           <form className="access-form" onSubmit={submit} aria-busy={busy}>
             <div className="access-form-heading">
               <p className="access-kicker">CONTA DE ACESSO</p>
-              <h2 id="access-form-title">Entrar no GCOM</h2>
+              <h2 id="access-form-title">Acessar o sistema</h2>
               <p>Use a conta cadastrada pelo administrador da sua distribuidora.</p>
             </div>
 
@@ -149,7 +152,13 @@ export default function Login() {
       </div>
 
       <footer className="access-footer">
-        <span>GCOM · Gestão de comissões</span>
+        <Image
+          className="footer-gcom-logo"
+          src="/logo-gcom.png"
+          alt="GCOM · Gestão de comissão"
+          width={120}
+          height={40}
+        />
         <span>Pedidos, deduções e pagamentos com histórico de conferência.</span>
       </footer>
     </main>

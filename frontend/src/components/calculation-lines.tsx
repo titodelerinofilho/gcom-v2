@@ -68,7 +68,7 @@ export function CalculationLines({
               </div>
               <span>
                 {undefined !== context
-                  ? `Filial ${context.branch} · Tabela ${context.orderRegion} · PSD (Revenda) ${context.psdRegion} · PSCF (Consumidor Final) ${context.pscfRegion}`
+                  ? `Filial ${context.branch} · Tabela original ${context.orderRegion}${undefined !== context.comparisonSquare ? ` · Praça escolhida ${context.comparisonSquare}` : ""} · PSD (Revenda) ${context.psdRegion} · PSCF (Consumidor Final) ${context.pscfRegion}`
                   : "Referências preservadas no lançamento"}
               </span>
             </div>

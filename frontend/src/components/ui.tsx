@@ -6,6 +6,7 @@ export function Status({ value }: { value: string }) {
     pending: "Aguardando aprovação",
     approved: "Pronta para pagamento",
     paid: "Paga",
+    rejected: "Reprovada",
   };
   return (
     <span className={`status ${value}`}>

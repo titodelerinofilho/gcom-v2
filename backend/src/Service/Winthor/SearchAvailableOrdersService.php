@@ -11,6 +11,7 @@ use App\Dto\Winthor\Output\PriceContextOutput;
 use App\Exception\Business\BusinessException;
 use App\Integration\Winthor\OrderGatewayInterface;
 use App\Repository\Order\OrderSnapshotRepository;
+use App\Service\Commission\CommissionSquareService;
 use App\Service\Commission\PriceContextResolverService;
 use App\Service\CommissionRule\GetCurrentCommissionRuleService;
 use App\Service\Finance\MoneyService;
@@ -23,6 +24,7 @@ final readonly class SearchAvailableOrdersService
         private OrderSnapshotRepository $snapshots,
         private GetCurrentCommissionRuleService $rules,
         private PriceContextResolverService $contexts,
+        private CommissionSquareService $squares,
     ) {
     }
 
@@ -35,7 +37,8 @@ final readonly class SearchAvailableOrdersService
             throw new BusinessException('Informe um período válido de até 366 dias.');
         }
 
-        $rows = $this->winthor->search($input->customer, $input->from, $input->to, null);
+        $this->squares->validate($input->square, $input->mode);
+        $rows = $this->winthor->search($input->customer, $input->from, $input->to, $input->square, $input->mode);
 
         $numbers = array_map(static fn (array $row): string => (string) $row['NUMPED'], $rows);
 
@@ -65,7 +68,7 @@ final readonly class SearchAvailableOrdersService
             $priceContextError = null;
 
             try {
-                $context = $this->contexts->resolve($row, $rule);
+                $context = $this->contexts->resolve($row, $rule, $input->square);
                 $plan = (string) ($row['COMMISSION_NUMPR'] ?? '');
 
                 if (false === in_array($plan, ['1', '2', '3', '4', '5', '6', '7'], true)) {
@@ -80,6 +83,7 @@ final readonly class SearchAvailableOrdersService
                     'PVENDA'.$plan,
                     $rule['basis'],
                     $rule['version'],
+                    $input->square,
                 );
             } catch (BusinessException $exception) {
                 $priceContextError = $exception->getMessage();
@@ -95,6 +99,7 @@ final readonly class SearchAvailableOrdersService
                 $priceContext,
                 $priceContextError,
                 true === isset($row['NUMNOTA']) ? (string) $row['NUMNOTA'] : null,
+                (int) $row['CODPRACA'],
             );
         }
 

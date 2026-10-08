@@ -38,6 +38,12 @@ final readonly class CommissionOutput implements JsonSerializable
 
     public ?string $approvedAt;
 
+    public ?string $rejectionReason;
+
+    public ?string $rejectedAt;
+
+    public ?string $rejectedBy;
+
     public array $calculation;
 
     /** @var list<OrderOutput> */
@@ -65,8 +71,11 @@ final readonly class CommissionOutput implements JsonSerializable
         $this->createdBy = new CommissionActorOutput($commission->getCreatedBy());
         $this->approvedBy = $commission->getApprovedBy()?->getName();
         $this->approvedAt = $commission->getApprovedAt()?->format(\DATE_ATOM);
+        $this->rejectionReason = $commission->getRejectionReason();
+        $this->rejectedAt = $commission->getRejectedAt()?->format(\DATE_ATOM);
+        $this->rejectedBy = $commission->getRejectedBy()?->getName();
         $this->calculation = true === $detail ? ($calculation ?? $commission->getCalculation()) : [];
-        $this->orders = true === $detail ? array_map(static fn (OrderSnapshot $order): OrderOutput => new OrderOutput($order, true), $commission->getOrders()->toArray()) : [];
+        $this->orders = true === $detail ? array_map(static fn (OrderSnapshot $order): OrderOutput => new OrderOutput($order, true, 'rejected' === $commission->getStatus() ? $commission->getId() : null), $commission->getOrders()->toArray()) : [];
     }
 
     public function jsonSerialize(): array

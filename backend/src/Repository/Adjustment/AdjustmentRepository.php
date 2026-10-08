@@ -50,9 +50,25 @@ final class AdjustmentRepository extends ServiceEntityRepository
     }
 
     /** @return list<int> */
-    public function pendingIds(string $customer): array
+    public function pendingIds(string $customer, ?array $returnTransactions = null): array
     {
-        return array_map(static fn (Adjustment $adjustment): int => $adjustment->getId(), $this->findBy(['customerCode' => $customer, 'commission' => null], ['id' => 'ASC']));
+        $pending = $this->findBy(['customerCode' => $customer, 'commission' => null], ['id' => 'ASC']);
+        $ids = [];
+
+        foreach ($pending as $adjustment) {
+            $isUnselectedReturn = null !== $returnTransactions
+                && 'return' === $adjustment->getType()
+                && null !== $adjustment->getSourceKey()
+                && false === in_array(str_replace('winthor:return:', '', $adjustment->getSourceKey()), $returnTransactions, true);
+
+            if (true === $isUnselectedReturn) {
+                continue;
+            }
+
+            $ids[] = $adjustment->getId();
+        }
+
+        return $ids;
     }
 
     /** @return list<Adjustment> */
