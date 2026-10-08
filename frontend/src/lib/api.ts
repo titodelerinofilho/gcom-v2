@@ -60,6 +60,9 @@ export type Item = {
   raw: Record<string, unknown>;
 };
 export type Order = {
+  invoiceNumber?: string | null;
+  authorCustomerCode?: string | null;
+  authorCustomerName?: string | null;
   id: number;
   orderNumber: string;
   customerCode: string;

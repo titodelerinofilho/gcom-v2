@@ -16,12 +16,17 @@ export function CalculationLines({
   percentage,
   basis,
   snapshots = [],
+  orderDetails = [],
 }: {
   items: CalculationLine[];
   orders?: CalculationOrder[];
   percentage?: string;
   basis?: string;
   snapshots?: Order[];
+  orderDetails?: Pick<
+    Order,
+    "orderNumber" | "invoiceNumber" | "authorCustomerCode" | "authorCustomerName"
+  >[];
 }) {
   const referenceLabel = commissionReferenceLabel(basis);
   const orderNumbers = [...new Set(items.map((line) => line.orderNumber))];
@@ -39,6 +44,7 @@ export function CalculationLines({
         const lines = items.filter((line) => line.orderNumber === number);
         const totals = orders.find((order) => order.orderNumber === number);
         const snapshot = snapshots.find((order) => order.orderNumber === number);
+        const orderDetail = snapshot ?? orderDetails.find((order) => order.orderNumber === number);
         const context = lines[0]?.context;
 
         return (
@@ -48,7 +54,18 @@ export function CalculationLines({
             aria-label={`Cálculo do pedido ${number}`}
           >
             <div className="calculation-order-heading">
-              <h3>Pedido #{number}</h3>
+              <div>
+                <h3 className="order-number-invoice">
+                  Pedido #{number}
+                  <span className="order-invoice">NF {orderDetail?.invoiceNumber ?? "—"}</span>
+                </h3>
+                {undefined !== orderDetail && (
+                  <p className="calculation-order-customer">
+                    {orderDetail.authorCustomerCode ?? "—"} ·{" "}
+                    {orderDetail.authorCustomerName ?? "Nome não preservado"}
+                  </p>
+                )}
+              </div>
               <span>
                 {undefined !== context
                   ? `Filial ${context.branch} · Tabela ${context.orderRegion} · PSD (Revenda) ${context.psdRegion} · PSCF (Consumidor Final) ${context.pscfRegion}`

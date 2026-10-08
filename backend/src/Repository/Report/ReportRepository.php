@@ -80,7 +80,7 @@ final class ReportRepository
                        p.amount AS paid_amount, p.calculated_amount, p.manual_reason,
                        CASE WHEN p.manual_amount = TRUE THEN 'Sim' WHEN p.manual_amount = FALSE THEN 'Não' ELSE NULL END AS manual_amount,
                        COALESCE(c.calculation->>'mode', 'normal') AS mode,
-                       (SELECT STRING_AGG(o.order_number, ', ' ORDER BY o.order_number)
+                       (SELECT STRING_AGG(o.order_number || ' · NF ' || COALESCE(o.header->>'NUMNOTA', o.header->>'NUMCUPOM', '—'), ', ' ORDER BY o.order_number)
                         FROM order_snapshot o WHERE o.commission_id = c.id) AS orders,
                        c.id
                 FROM commission c

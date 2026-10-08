@@ -203,7 +203,7 @@ export function ReportsPage() {
                           "Status / Pagamento",
                         ]
                       : [
-                          "Cliente / Tipo",
+                          "Cliente / Modalidade",
                           "Referência / Motivo",
                           "Valor",
                           "Situação",
@@ -233,12 +233,12 @@ export function ReportsPage() {
                       {commissions ? (
                         <>
                           <td>
+                            <strong>
+                              {row.customer_code} · {row.customer_name}
+                            </strong>
                             <Link className="text-link" href={`/commissions/${row.id}`}>
                               {row.code}
                             </Link>
-                            <small>
-                              {row.customer_code} · {row.customer_name}
-                            </small>
                           </td>
                           <td>
                             <CommissionMode mode={String(row.mode)} />
@@ -263,7 +263,7 @@ export function ReportsPage() {
                       ) : (
                         <>
                           <td>
-                            {row.customer_code}
+                            <strong>{row.customer_code}</strong>
                             <small>
                               {labels[String(row.type)]} · {labels[String(row.mode)]}
                             </small>

@@ -72,7 +72,9 @@ export function CommissionDetail({ id }: { id: string }) {
       <div className="page-heading">
         <div>
           <span className="eyebrow">DETALHES DA COMISSÃO</span>
-          <h1>{data.customerName}</h1>
+          <h1>
+            {data.customerCode} · {data.customerName}
+          </h1>
           <p className="mono">{data.code}</p>
         </div>
         <div className="heading-actions">

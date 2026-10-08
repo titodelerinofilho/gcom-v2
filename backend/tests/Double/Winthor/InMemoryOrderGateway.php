@@ -29,7 +29,7 @@ final class InMemoryOrderGateway implements OrderGatewayInterface
 
     public function fetch(string $orderNumber): array
     {
-        return ['header' => ['NUMPED' => $orderNumber, 'CODCLI' => '100', 'VLTOTAL' => '1200.00', 'POSICAO' => 'F', 'CODFILIAL' => '1', 'NUMREGIAO' => 2, 'VLFRETE' => '25.00', 'COMMISSION_NUMPR' => '3'],
+        return ['header' => ['NUMPED' => $orderNumber, 'NUMNOTA' => '900', 'CODCLI' => '100', 'VLTOTAL' => '1200.00', 'POSICAO' => 'F', 'CODFILIAL' => '1', 'NUMREGIAO' => 2, 'VLFRETE' => '25.00', 'COMMISSION_NUMPR' => '3'],
             'customerName' => 'Cliente de Teste',
             'items' => [['CODPROD' => '200', 'DESCRICAO' => 'Produto de Teste', 'QT' => '3.000000', 'PVENDA' => '222' === $orderNumber ? '400.125000' : '400.000000', 'PTABELA' => '300.000000', 'NUMSEQ' => '1', 'COMMISSION_PRICES' => ['1' => ['PVENDA3' => '350.000000'], '2' => ['PVENDA3' => '400.000000']]]]];
     }

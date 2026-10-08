@@ -163,7 +163,7 @@ export function OrdersPage() {
               <thead>
                 <tr>
                   <th>Pedido</th>
-                  <th>Cliente</th>
+                  <th>Cliente principal</th>
                   <th>Itens</th>
                   <th>Importado em</th>
                   <th>Situação</th>
@@ -174,10 +174,16 @@ export function OrdersPage() {
               <tbody>
                 {list.data.items.map((o) => (
                   <tr key={o.id}>
-                    <td className="mono">#{o.orderNumber}</td>
                     <td>
-                      <strong>{o.customerName}</strong>
-                      <small>Cód. {o.customerCode}</small>
+                      <span className="order-number-invoice">
+                        <strong className="mono">#{o.orderNumber}</strong>
+                        <span className="order-invoice">NF {o.invoiceNumber ?? "—"}</span>
+                      </span>
+                    </td>
+                    <td>
+                      <strong>
+                        {o.customerCode} · {o.customerName}
+                      </strong>
                     </td>
                     <td>{o.itemCount}</td>
                     <td>{date(o.capturedAt)}</td>
@@ -243,7 +249,10 @@ export function OrdersPage() {
         </Modal>
       )}
       {detail && (
-        <Modal title={`Pedido #${detail.orderNumber}`} close={() => setDetail(undefined)}>
+        <Modal
+          title={`Pedido #${detail.orderNumber} · NF ${detail.invoiceNumber ?? "—"}`}
+          close={() => setDetail(undefined)}
+        >
           <OrderDetails order={detail} />
         </Modal>
       )}
@@ -256,8 +265,15 @@ export function OrderDetails({ order }: { order: Order }) {
       <div className="detail-meta">
         <div>
           <small>Cliente principal</small>
-          <strong>{order.customerName}</strong>
-          <span>Cód. {order.customerCode}</span>
+          <strong>
+            {order.customerCode} · {order.customerName}
+          </strong>
+        </div>
+        <div>
+          <small>Cliente autor do pedido</small>
+          <strong>
+            {order.authorCustomerCode ?? "—"} · {order.authorCustomerName ?? "Nome não preservado"}
+          </strong>
         </div>
         <div>
           <small>Valor do pedido</small>
@@ -268,9 +284,7 @@ export function OrderDetails({ order }: { order: Order }) {
       <p className="muted">
         Filial {String(order.header?.CODFILIAL ?? "—")} · Tabela{" "}
         {String(order.header?.NUMREGIAO ?? "—")} · Plano {String(order.header?.CODPLPAG ?? "—")} ·
-        Cliente final {String(order.header?.CODCLI ?? "—")} /{" "}
-        {String(order.header?.COMMISSION_FINAL_CUSTOMER_NAME ?? "—")} · Frete{" "}
-        {money(String(order.header?.VLFRETE ?? "0"))}
+        Frete {money(String(order.header?.VLFRETE ?? "0"))}
       </p>
       <div className="table-wrap">
         <table>
@@ -375,7 +389,9 @@ export function CommissionsPage() {
                 {list.data.items.map((c) => (
                   <tr key={c.id} className={"atg" === c.mode ? "commission-atg-row" : undefined}>
                     <td>
-                      <strong>{c.customerName}</strong>
+                      <strong>
+                        {c.customerCode} · {c.customerName}
+                      </strong>
                       <small className="mono">{c.code}</small>
                     </td>
                     <td>
@@ -420,6 +436,7 @@ export function CommissionsPage() {
   );
 }
 type AvailableOrder = {
+  invoiceNumber?: string | null;
   orderNumber: string;
   customerCode: string;
   customerName: string;
@@ -681,6 +698,7 @@ function NewCommission({ done }: { done: () => void }) {
       {null !== orders && (
         <fieldset>
           <legend>Pedidos disponíveis · {orders.length} encontrados</legend>
+          <p className="muted">Cliente {customer}</p>
           <p className="muted">
             Data do pedido no Winthor. Pedidos já comissionados são excluídos. Até 500 pedidos por
             busca; reduza o período quando necessário.
@@ -715,8 +733,12 @@ function NewCommission({ done }: { done: () => void }) {
                 onChange={() => toggle(order.orderNumber)}
               />
               <span>
+                <strong className="order-number-invoice">
+                  Pedido #{order.orderNumber}
+                  <span className="order-invoice">NF {order.invoiceNumber ?? "—"}</span>
+                </strong>
                 <strong>
-                  #{order.orderNumber} · {order.customerName} (cliente {order.customerCode})
+                  {order.customerCode} · {order.customerName}
                 </strong>
                 <small>
                   {"" === order.orderDate ? "Data indisponível" : date(order.orderDate)} · Filial{" "}
@@ -822,6 +844,12 @@ function NewCommission({ done }: { done: () => void }) {
             orders={preview.calculation.orders}
             percentage={preview.calculation.percentageApplied}
             basis={preview.calculation.effectiveBasis}
+            orderDetails={(orders ?? []).map((order) => ({
+              orderNumber: order.orderNumber,
+              invoiceNumber: order.invoiceNumber,
+              authorCustomerCode: order.customerCode,
+              authorCustomerName: order.customerName,
+            }))}
           />
           <details className="commission-applied-deductions">
             <summary>Deduções consideradas nesta simulação ({preview.adjustments.length})</summary>
@@ -916,7 +944,7 @@ export function AdjustmentsPage() {
               <tbody>
                 {list.data.items.map((a) => (
                   <tr key={a.id}>
-                    <td>Cód. {a.customerCode}</td>
+                    <td>{a.customerCode}</td>
                     <td>
                       <strong>
                         {a.type === "return"

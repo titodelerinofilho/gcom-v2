@@ -2045,3 +2045,33 @@ legend {
     color: #000;
   }
 }
+
+.order-number-invoice {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.order-invoice,
+.calculation-order-heading .order-invoice {
+  display: inline-block;
+  padding: 3px 7px;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  color: #475569;
+  background: #f8fafc;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.checkbox-row strong.order-number-invoice {
+  display: flex;
+}
+
+.calculation-order-customer {
+  margin: 7px 0 0;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.5;
+}

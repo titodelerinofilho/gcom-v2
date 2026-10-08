@@ -10,8 +10,9 @@ use App\Integration\Winthor\OrderGatewayInterface;
 
 final readonly class OrderRepository implements OrderGatewayInterface
 {
-    public function __construct(private Statement $statement)
-    {
+    public function __construct(
+        private Statement $statement,
+    ) {
     }
 
     public function assertEligible(array $numbers): void
@@ -30,8 +31,11 @@ final readonly class OrderRepository implements OrderGatewayInterface
                     AND M.CODOPER = 'S' AND M.DTCANCEL IS NOT NULL AND M.QT < 0
               )
             SQL;
+
         foreach ($numbers as $number) {
-            if (false === $this->statement->query($sql, ['order_number' => $number])->fetchOne()) {
+            $stmt = $this->statement->query($sql, ['order_number' => $number])->fetchOne();
+
+            if (false === $stmt) {
                 throw new BusinessException('Pedido '.$number.' cancelado ou fora dos critérios de comissão do legado.', 409);
             }
         }
@@ -45,11 +49,13 @@ final readonly class OrderRepository implements OrderGatewayInterface
 
         return $this->statement->transaction(function () use ($orderNumber): array {
             $this->assertEligible([$orderNumber]);
+
             $headerSql = <<<'SQL'
                 SELECT P.*, TO_CHAR(P.DATA, 'YYYY-MM-DD HH24:MI:SS') AS DATA_ISO
                 FROM PCPEDC P
                 WHERE P.NUMPED = :order_number
                 SQL;
+
             $header = $this->statement->query($headerSql, ['order_number' => $orderNumber])->fetchAssociative();
 
             if (false === $header) {
@@ -63,7 +69,10 @@ final readonly class OrderRepository implements OrderGatewayInterface
                 LEFT JOIN PCCLIENT A ON A.CODCLI = C.CODREVENDA
                 WHERE C.CODCLI = :customer
                 SQL;
-            $customer = $this->statement->query($customerSql, ['customer' => $header['CODCLI']])->fetchAssociative();
+
+            $customer = $this->statement
+                ->query($customerSql, ['customer' => $header['CODCLI']])
+                ->fetchAssociative();
 
             if (false === $customer) {
                 throw new BusinessException('Cliente do pedido não encontrado.');
@@ -71,6 +80,7 @@ final readonly class OrderRepository implements OrderGatewayInterface
 
             $header['COMMISSION_PRINCIPAL'] = (string) $customer['PRINCIPAL'];
             $header['COMMISSION_FINAL_CUSTOMER_NAME'] = $customer['CLIENTE'];
+
             $itemsSql = <<<'SQL'
                 SELECT I.*, R.DESCRICAO
                 FROM PCPEDI I
@@ -78,7 +88,10 @@ final readonly class OrderRepository implements OrderGatewayInterface
                 WHERE I.NUMPED = :order_number AND I.POSICAO = 'F'
                 ORDER BY I.CODPROD, I.NUMSEQ
                 SQL;
-            $items = $this->statement->query($itemsSql, ['order_number' => $orderNumber])->fetchAllAssociative();
+
+            $items = $this->statement
+                ->query($itemsSql, ['order_number' => $orderNumber])
+                ->fetchAllAssociative();
 
             if ([] === $items) {
                 throw new BusinessException('Pedido sem itens faturados.');
@@ -87,7 +100,9 @@ final readonly class OrderRepository implements OrderGatewayInterface
             $planSql = <<<'SQL'
                 SELECT NUMPR FROM PCPLPAG WHERE CODPLPAG = :plan
                 SQL;
+
             $header['COMMISSION_NUMPR'] = $this->statement->query($planSql, ['plan' => $header['CODPLPAG']])->fetchOne();
+
             $pricesSql = <<<'SQL'
                 SELECT T.CODPROD, T.NUMREGIAO, T.PTABELA1,
                        T.PVENDA1, T.PVENDA2, T.PVENDA3, T.PVENDA4,
@@ -98,8 +113,13 @@ final readonly class OrderRepository implements OrderGatewayInterface
                     WHERE I.NUMPED = :order_number AND I.CODPROD = T.CODPROD
                 )
                 SQL;
-            $rows = $this->statement->query($pricesSql, ['order_number' => $orderNumber])->fetchAllAssociative();
+
+            $rows = $this->statement
+                ->query($pricesSql, ['order_number' => $orderNumber])
+                ->fetchAllAssociative();
+
             $prices = [];
+
             foreach ($rows as $price) {
                 $product = (string) $price['CODPROD'];
                 $region = (string) $price['NUMREGIAO'];
@@ -123,6 +143,7 @@ final readonly class OrderRepository implements OrderGatewayInterface
                   AND EXISTS (SELECT 1 FROM PCPRECOCESTAI PI WHERE PI.CODPRECOCESTA = PC.CODPRECOCESTA)
                 ORDER BY P.CODPROD, PC.CODPRECOCESTA, P.CODPRODMP
                 SQL;
+
             $compositions = [];
 
             // Ordinary orders do not depend on the optional combo tables.
@@ -135,8 +156,14 @@ final readonly class OrderRepository implements OrderGatewayInterface
                         WHERE P.NUMPED = :order_number AND P.CODPRODMP = T.CODPROD
                     )
                     SQL;
+
                 $componentPrices = [];
-                foreach ($this->statement->query($componentPricesSql, ['order_number' => $orderNumber])->fetchAllAssociative() as $price) {
+
+                $componentPricesItems = $this->statement
+                    ->query($componentPricesSql, ['order_number' => $orderNumber])
+                    ->fetchAllAssociative();
+
+                foreach ($componentPricesItems as $price) {
                     $product = (string) $price['CODPROD'];
                     $region = (string) $price['NUMREGIAO'];
 
@@ -147,7 +174,9 @@ final readonly class OrderRepository implements OrderGatewayInterface
                     $componentPrices[$product][$region] = $price['PVENDA1'];
                 }
 
-                foreach ($this->statement->query($compositionSql, ['order_number' => $orderNumber])->fetchAllAssociative() as $component) {
+                $components = $this->statement->query($compositionSql, ['order_number' => $orderNumber])->fetchAllAssociative();
+
+                foreach ($components as $component) {
                     $component['COMMISSION_COMPONENT_PRICES'] = $componentPrices[(string) $component['CODPRODMP']] ?? [];
                     $compositions[(string) $component['CODPROD']][] = $component;
                 }
@@ -157,9 +186,14 @@ final readonly class OrderRepository implements OrderGatewayInterface
                 $item['COMMISSION_COMPOSITION'] = $compositions[(string) $item['CODPROD']] ?? [];
                 $item['COMMISSION_PRICES'] = $prices[(string) $item['CODPROD']] ?? [];
             }
+
             unset($item);
 
-            return ['header' => $header, 'customerName' => $customer['PRINCIPAL_NAME'], 'items' => $items];
+            return [
+                'header' => $header,
+                'customerName' => $customer['PRINCIPAL_NAME'],
+                'items' => $items,
+            ];
         });
     }
 
@@ -185,6 +219,13 @@ final readonly class OrderRepository implements OrderGatewayInterface
             FETCH FIRST 500 ROWS ONLY
             SQL;
 
-        return $this->statement->query($sql, ['customer' => $customer, 'date_from' => $from, 'date_to' => $to, 'square' => $square, 'square_value' => $square])->fetchAllAssociative();
+        return $this->statement
+            ->query($sql, [
+                'customer' => $customer,
+                'date_from' => $from,
+                'date_to' => $to,
+                'square' => $square,
+                'square_value' => $square,
+            ])->fetchAllAssociative();
     }
 }

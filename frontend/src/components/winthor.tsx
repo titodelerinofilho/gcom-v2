@@ -153,7 +153,7 @@ export function WinthorPage() {
                 <thead>
                   <tr>
                     <th>Pedido / Transação</th>
-                    <th>Cliente / Produto</th>
+                    <th>{"orders" === resultKind ? "Cliente principal" : "Cliente / Produto"}</th>
                     <th>Filial / Tabela</th>
                     <th>Quantidade / Valor</th>
                     <th>Detalhes / Ação</th>
@@ -163,18 +163,24 @@ export function WinthorPage() {
                   {rows.map((row, i) => (
                     <tr key={i}>
                       <td>
-                        {String(row.NUMPED ?? "—")}
-                        <small>
-                          {String(row.NUMTRANSENT ?? row.NUMTRANSVENDA ?? "—")} · NF{" "}
-                          {String(row.NUMNOTA ?? "—")}
-                        </small>
+                        <span className="order-number-invoice">
+                          {String(row.NUMPED ?? "—")}
+                          <span className="order-invoice">NF {String(row.NUMNOTA ?? "—")}</span>
+                        </span>
+                        <small>{String(row.NUMTRANSENT ?? row.NUMTRANSVENDA ?? "—")}</small>
                       </td>
                       <td>
-                        {String(row.CLIENTE ?? row.DESCRICAO ?? "—")}
-                        <small>
-                          Cliente {String(row.CODCLI ?? row.FINAL_CUSTOMER ?? "—")} · Produto{" "}
-                          {String(row.CODPROD ?? "—")}
-                        </small>
+                        {"orders" === resultKind ? (
+                          queried?.customer
+                        ) : (
+                          <>
+                            {String(row.CLIENTE ?? row.DESCRICAO ?? "—")}
+                            <small>
+                              Cliente {String(row.CODCLI ?? row.FINAL_CUSTOMER ?? "—")} · Produto{" "}
+                              {String(row.CODPROD ?? "—")}
+                            </small>
+                          </>
+                        )}
                       </td>
                       <td>
                         {String(row.CODFILIAL ?? "—")} / {String(row.NUMREGIAO ?? "—")}

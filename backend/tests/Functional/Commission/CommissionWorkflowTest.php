@@ -115,6 +115,7 @@ final class CommissionWorkflowTest extends WebTestCase
         $result = $this->call('GET', '/winthor/orders/available?customer=100&from=2026-10-01&to=2026-10-07');
         self::assertResponseIsSuccessful();
         self::assertSame('123', $result['items'][0]['orderNumber']);
+        self::assertSame('900', $result['items'][0]['invoiceNumber']);
         self::assertSame('100', $result['items'][0]['customerCode']);
         self::assertSame('2026-10-01', $result['items'][0]['orderDate']);
         self::assertSame('1200.00', $result['items'][0]['total']);
@@ -224,6 +225,9 @@ final class CommissionWorkflowTest extends WebTestCase
         $c = $this->createCommission();
         $snapshot = $this->call('GET', '/orders/'.$c['orders'][0]['id']);
         self::assertSame('1', $snapshot['items'][0]['raw']['NUMSEQ']);
+        self::assertSame('900', $snapshot['invoiceNumber']);
+        self::assertSame('100', $snapshot['authorCustomerCode']);
+        self::assertSame('Cliente de Teste', $snapshot['authorCustomerName']);
         $this->login('finance');
         $this->call('POST', '/commissions/'.$c['id'].'/approve');
         self::assertResponseIsSuccessful();
@@ -402,6 +406,7 @@ final class CommissionWorkflowTest extends WebTestCase
         self::assertSame(1, $paid['total']);
         self::assertSame('195.00', $paid['amount']);
         self::assertSame('atg', $paid['items'][0]['mode']);
+        self::assertSame('456 · NF 900', $paid['items'][0]['orders']);
         $other = $this->call('GET', '/reports/commissions?customer=999&status=paid');
         self::assertSame(0, $other['total']);
         $normal = $this->call('GET', '/reports/commissions?mode=normal');

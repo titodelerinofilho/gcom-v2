@@ -94,6 +94,7 @@ final readonly class SearchAvailableOrdersService
                 MoneyService::normalize((string) $row['VLTOTAL']),
                 $priceContext,
                 $priceContextError,
+                true === isset($row['NUMNOTA']) ? (string) $row['NUMNOTA'] : null,
             );
         }
 

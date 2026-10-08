@@ -14,9 +14,15 @@ final readonly class OrderOutput implements JsonSerializable
 
     public string $orderNumber;
 
+    public ?string $invoiceNumber;
+
     public string $customerCode;
 
     public string $customerName;
+
+    public ?string $authorCustomerCode;
+
+    public ?string $authorCustomerName;
 
     public string $total;
 
@@ -37,6 +43,12 @@ final readonly class OrderOutput implements JsonSerializable
         $this->orderNumber = $order->getOrderNumber();
         $this->customerCode = $order->getCustomerCode();
         $this->customerName = $order->getCustomerName();
+        $header = $order->getHeader();
+        $invoiceNumber = $header['NUMNOTA'] ?? $header['NUMCUPOM'] ?? null;
+        $this->invoiceNumber = null === $invoiceNumber ? null : (string) $invoiceNumber;
+        $this->authorCustomerCode = true === isset($header['CODCLI']) ? (string) $header['CODCLI'] : null;
+        $this->authorCustomerName = $header['COMMISSION_FINAL_CUSTOMER_NAME'] ?? $header['CLIENTE'] ?? ($this->authorCustomerCode === $this->customerCode ? $this->customerName : null);
+
         $this->total = $order->getTotal();
         $this->capturedAt = $order->getCapturedAt()->format(\DATE_ATOM);
         $this->commissionId = $order->getCommission()?->getId();

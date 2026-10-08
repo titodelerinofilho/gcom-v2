@@ -15,6 +15,7 @@ final readonly class AvailableOrderOutput
         public string $total,
         public ?PriceContextOutput $priceContext,
         public ?string $priceContextError,
+        public ?string $invoiceNumber,
     ) {
     }
 }

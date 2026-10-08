@@ -235,8 +235,9 @@ export function Dashboard({ reports = false }: { reports?: boolean }) {
                         {summary.byCustomer.map((c) => (
                           <tr key={c.customer_code}>
                             <td>
-                              <strong>{c.customer_name}</strong>
-                              <small>Cód. {c.customer_code}</small>
+                              <strong>
+                                {c.customer_code} · {c.customer_name}
+                              </strong>
                             </td>
                             <td>{c.count}</td>
                             <td className="number">{money(c.amount)}</td>
@@ -276,7 +277,9 @@ export function Dashboard({ reports = false }: { reports?: boolean }) {
                         {recent.map((c) => (
                           <tr key={c.id}>
                             <td>
-                              <strong>{c.customerName}</strong>
+                              <strong>
+                                {c.customerCode} · {c.customerName}
+                              </strong>
                               <small>{c.code}</small>
                             </td>
                             <td>{date(c.createdAt)}</td>
