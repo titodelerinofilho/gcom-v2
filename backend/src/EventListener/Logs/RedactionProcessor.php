@@ -18,11 +18,11 @@ final class RedactionProcessor implements ProcessorInterface
     private function clean(array $values): array
     {
         foreach ($values as $key => &$value) {
-            if (preg_match('/password|secret|token|cookie|authorization|params|parameters|dsn|database_url|email/i', (string) $key)) {
+            if (1 === preg_match('/password|secret|token|cookie|authorization|params|parameters|dsn|database_url|email/i', (string) $key)) {
                 $value = '[redacted]';
             } elseif ($value instanceof Throwable) {
                 $value = ['class' => $value::class, 'code' => $value->getCode()];
-            } elseif (is_array($value)) {
+            } elseif (true === is_array($value)) {
                 $value = $this->clean($value);
             }
         }

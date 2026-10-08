@@ -54,7 +54,7 @@ export function CalculationSettings() {
       {!rule ? (
         <Loading />
       ) : (
-        <section className="panel detail-panel">
+        <section className="panel form-panel">
           <FieldsForm
             key={rule.version}
             label="Publicar nova regra"

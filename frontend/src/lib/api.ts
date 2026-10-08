@@ -124,6 +124,7 @@ export type Commission = {
     deductedFreight?: string;
     baseAmount?: string;
     items?: CalculationLine[];
+    orders?: CalculationOrder[];
   };
   orders?: Order[];
   payment?: Payment;
@@ -152,7 +153,21 @@ export type PriceContext = {
   psdRegion: number;
   pscfRegion: number;
 };
+export type CalculationOrder = {
+  orderNumber: string;
+  sales: string;
+  reference: string;
+  deductedFreight: string;
+  baseAmount: string;
+  grossAmount: string;
+};
 export type CalculationLine = {
+  description?: string;
+  unit?: string;
+  paymentPlan?: string | number | null;
+  discountPercentage?: string;
+  percentageApplied?: string;
+  commissionBeforeFreight?: string;
   combo?: {
     components: {
       productCode: string;
@@ -192,6 +207,7 @@ export type CommissionRule = {
 };
 export type CalculationPreview = {
   adjustmentIds: number[];
+  adjustments: Adjustment[];
   calculation: {
     rule: CommissionRule;
     mode: string;
@@ -203,6 +219,7 @@ export type CalculationPreview = {
     baseAmount: string;
     grossAmount: string;
     items: CalculationLine[];
+    orders: CalculationOrder[];
   };
   gross: string;
   deductions: string;

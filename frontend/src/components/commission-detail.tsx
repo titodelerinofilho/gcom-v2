@@ -1,4 +1,5 @@
 "use client";
+import { CommissionSummary } from "./commission-summary";
 import { CalculationLines } from "./calculation-lines";
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
@@ -110,20 +111,12 @@ export function CommissionDetail({ id }: { id: string }) {
           </span>
         )}
       </div>
-      <div className="stat-grid three">
-        <article className="stat-card">
-          <span>Comissão bruta</span>
-          <strong>{money(data.grossAmount)}</strong>
-        </article>
-        <article className="stat-card">
-          <span>Deduções</span>
-          <strong>{money(data.deductions)}</strong>
-        </article>
-        <article className="stat-card accent">
-          <span>Valor líquido</span>
-          <strong>{money(data.netAmount)}</strong>
-        </article>
-      </div>
+      <CommissionSummary
+        gross={data.grossAmount}
+        deductions={data.deductions}
+        net={data.netAmount}
+        adjustments={data.adjustments}
+      />
       <section className="panel detail-panel">
         <div className="panel-heading">
           <div>
@@ -153,7 +146,14 @@ export function CommissionDetail({ id }: { id: string }) {
           </div>
         )}
         <p className="preserve-lines">{data.calculation?.reason}</p>
-        {data.calculation?.items && <CalculationLines items={data.calculation.items} />}
+        {data.calculation?.items && (
+          <CalculationLines
+            items={data.calculation.items}
+            orders={data.calculation.orders}
+            percentage={data.calculation.percentageApplied ?? data.calculation.rule?.percentage}
+            snapshots={data.orders}
+          />
+        )}
         {data.calculation?.items && (
           <details className="raw-details">
             <summary>Memória por item e regra preservada</summary>
@@ -361,11 +361,9 @@ export function CommissionDetail({ id }: { id: string }) {
                     </label>
                     {true === manualAmount && (
                       <label>
-                        Justificativa da alteração manual
+                        Justificativa da alteração manual (opcional)
                         <textarea
                           name="manualReason"
-                          required
-                          minLength={10}
                           maxLength={2000}
                           rows={3}
                           placeholder="Explique por que o pagamento difere do valor calculado."
@@ -383,11 +381,9 @@ export function CommissionDetail({ id }: { id: string }) {
                       />
                     </label>
                     <label>
-                      Observação / Comprovante
+                      Observação / Comprovante (opcional)
                       <textarea
                         name="notes"
-                        required
-                        minLength={10}
                         maxLength={2000}
                         rows={3}
                         placeholder="Descreva como o pagamento foi conferido."

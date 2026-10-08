@@ -6,7 +6,9 @@ O GCOM usa Symfony/Doctrine em `backend/` e Next.js/TypeScript em `frontend/`. `
 
 Organize todas as camadas por assunto, com namespaces correspondentes: `Controller/Audit/`, `Entity/Audit/`, `Service/Audit/`, `Exception/Audit/`, `Repository/Audit/` e `Dto/Audit/Input/` ou `Output/`. Aplique também a Commands, Events, listeners e testes. Infraestrutura fica agrupada pelo assunto técnico. Listeners de logs permanecem em `EventListener/Logs/`.
 
-Cada controller representa uma operação, em uma classe com `__invoke()`: por exemplo, `Controller/Audit/ListAudit.php`. Use `CreateAudit`, `UpdateAudit` ou `DeleteAudit` somente quando necessários. Não crie CRUD automaticamente nem reúna operações em controllers genéricos.
+Cada controller representa uma operação, em uma classe com `__invoke()`: por exemplo, `Controller/Audit/ListAuditController.php`. Use `CreateAuditController`, `UpdateAuditController` ou `DeleteAuditController` somente quando necessários. Não crie CRUD automaticamente nem reúna operações em controllers genéricos.
+
+Classes e arquivos devem identificar seu papel no sufixo: `Controller`, `Service`, `Repository`, `Handler`, `Event`, `EventListener`, `EventSubscriber`, `Input` ou `Output`, conforme a responsabilidade.
 
 ## Code style e legibilidade
 
@@ -18,9 +20,9 @@ Condições booleanas devem ser explícitas: `false === $enabled` ou `true === $
 
 ## DTOs e design patterns
 
-Use DTOs tipados de Input e Output por operação; valide Input com Symfony Validator. Prefira DTOs imutáveis (`readonly`). Não exponha entidades Doctrine nem arrays genéricos como contratos da API.
+Use DTOs tipados de Input e Output por operação; valide Input com constraints nativas do Symfony Validator e mapeie requisições com `MapRequestPayload` ou `MapQueryString`. Crie um custom validator somente quando as constraints nativas não atenderem à operação. Prefira DTOs imutáveis (`readonly`). Não exponha entidades Doctrine nem arrays genéricos como contratos da API.
 
-Controllers recebem Input, delegam ao serviço e apresentam Output. Serviços concentram regras de negócio; repositories concentram consultas. Prefira composição, injeção por construtor e responsabilidade única. Use Strategy para algoritmos intercambiáveis e eventos/listeners para efeitos desacoplados quando necessários; evite abstrações sem uso concreto.
+Controllers recebem Input, delegam ao serviço e apresentam Output. Serviços concentram regras de negócio; repositories concentram consultas e todas as operações de persistência (`persist`, `flush`, remoção, transações e locks). Services não acessam o EntityManager nem a conexão Doctrine. Prefira composição, injeção por construtor e responsabilidade única. Use Strategy para algoritmos intercambiáveis e eventos/listeners para efeitos desacoplados quando necessários; evite abstrações sem uso concreto.
 
 Oracle passa pela camada Database/Statement, somente leitura. Declare SQL em variável antes de `statement->query()`. Logs são capturados por eventos e Monolog; nunca registre credenciais.
 

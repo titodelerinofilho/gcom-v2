@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Repository\Winthor;
 
 use App\Database\Statement\Statement;
-use App\Exception\BusinessException;
+use App\Exception\Business\BusinessException;
 
 final readonly class PclancRepository
 {

@@ -1,4 +1,5 @@
 "use client";
+import { CommissionSummary } from "./commission-summary";
 import { CalculationLines } from "./calculation-lines";
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
@@ -559,7 +560,9 @@ function NewCommission({ done }: { done: () => void }) {
 
   return (
     <FieldsForm
-      label="Registrar comissão"
+      label={
+        undefined === preview ? "Registrar comissão" : `Lançar comissão de ${money(preview.net)}`
+      }
       submitDisabled={undefined === preview || true === busy}
       done={done}
       submit={async (fields) => {
@@ -747,31 +750,77 @@ function NewCommission({ done }: { done: () => void }) {
       >
         {true === busy ? "Processando…" : "Simular comissão"}
       </button>
-      {undefined !== preview && <CalculationLines items={preview.calculation.items} />}
       {undefined !== preview && (
-        <div className="notice info">
-          <strong>
-            Regra #{preview.calculation.rule.version} ·{" "}
-            {Number(preview.calculation.percentageApplied)}%
-          </strong>
-          <p>
+        <section
+          className="commission-review"
+          aria-label="Conferência da comissão"
+          aria-live="polite"
+        >
+          <div>
+            <h2>Confira os valores antes de lançar</h2>
+            <p className="muted">
+              Regra #{preview.calculation.rule.version} ·{" "}
+              {Number(preview.calculation.percentageApplied).toLocaleString("pt-BR")}%
+            </p>
+          </div>
+          <CommissionSummary
+            gross={preview.gross}
+            deductions={preview.deductions}
+            net={preview.net}
+            adjustments={preview.adjustments}
+          />
+          <div className="notice info">
             Venda {money(preview.calculation.sales)} − referência{" "}
             {money(preview.calculation.reference)} − frete{" "}
             {money(preview.calculation.deductedFreight)} = base{" "}
             {money(preview.calculation.baseAmount)}.
-          </p>
-          <p>
-            Bruto: {money(preview.gross)} · Deduções: {money(preview.deductions)} · Líquido:{" "}
-            <strong>{money(preview.net)}</strong>
-          </p>
-        </div>
+          </div>
+          <h3>Cálculo por produto do pedido</h3>
+          <CalculationLines
+            items={preview.calculation.items}
+            orders={preview.calculation.orders}
+            percentage={preview.calculation.percentageApplied}
+          />
+          <details className="commission-applied-deductions">
+            <summary>Deduções consideradas nesta simulação ({preview.adjustments.length})</summary>
+            {0 === preview.adjustments.length ? (
+              <p className="muted">Sem deduções pendentes.</p>
+            ) : (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Tipo / Referência</th>
+                      <th>Justificativa</th>
+                      <th className="number">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {preview.adjustments.map((adjustment) => (
+                      <tr key={adjustment.id}>
+                        <td>
+                          {"return" === adjustment.type
+                            ? "Devolução"
+                            : "cancellation" === adjustment.type
+                              ? "Cancelamento"
+                              : "Débito"}
+                          <small>{adjustment.sourceReference}</small>
+                        </td>
+                        <td className="reason-cell">{adjustment.reason}</td>
+                        <td className="number">{money(adjustment.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </details>
+        </section>
       )}
       <label>
-        Memória de cálculo e justificativa
+        Memória de cálculo e justificativa (opcional)
         <textarea
           name="reason"
-          required
-          minLength={10}
           maxLength={2000}
           rows={3}
           disabled={busy}

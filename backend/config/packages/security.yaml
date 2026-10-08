@@ -4,7 +4,7 @@ security:
     providers:
         app_users:
             entity:
-                class: App\Entity\User
+                class: App\Entity\User\User
                 property: email
     role_hierarchy:
         ROLE_ADMIN: [ROLE_OPERATOR, ROLE_FINANCE, ROLE_AUDITOR]
@@ -14,15 +14,15 @@ security:
             security: false
         main:
             lazy: true
-            entry_point: App\Security\ApiEntryPoint
+            entry_point: App\Security\Auth\ApiEntryPoint
             provider: app_users
-            user_checker: App\Security\UserChecker
+            user_checker: App\Security\Auth\UserChecker
             json_login:
                 check_path: /api/login
                 username_path: email
                 password_path: password
-                success_handler: App\Security\LoginHandler
-                failure_handler: App\Security\LoginHandler
+                success_handler: App\Security\Auth\LoginHandler
+                failure_handler: App\Security\Auth\LoginHandler
             login_throttling:
                 max_attempts: 5
                 interval: '1 minute'

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Database\Statement;
 
-use App\Exception\DatabaseException;
+use App\Exception\Database\DatabaseException;
 
 final readonly class Query
 {

@@ -26,10 +26,10 @@ final class EventDriver extends AbstractDriverMiddleware
 
         try {
             return new EventConnection(parent::connect($params), $this->dispatcher);
-        } catch (Throwable $e) {
-            $exception = $e;
+        } catch (Throwable $exception) {
+            $exception = $exception;
 
-            throw $e;
+            throw $exception;
         } finally {
             $this->dispatcher->dispatch(new DatabaseQueryEvent('CONNECT', [], (hrtime(true) - $start) / 1e9, 'postgresql', 'connect', $exception));
         }

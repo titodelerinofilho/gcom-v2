@@ -64,8 +64,8 @@ export function ReportsPage() {
         title="Relatórios"
         text="Consulte pagamentos e acompanhe onde cada débito, devolução ou cancelamento foi abatido."
       />
-      <section className="panel detail-panel">
-        <form onSubmit={search}>
+      <section className="panel form-panel">
+        <form className="form-stack" onSubmit={search}>
           <div className="form-grid">
             <label>
               Relatório

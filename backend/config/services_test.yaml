@@ -1,7 +1,7 @@
 services:
-    App\Tests\Double\InMemoryOrderGateway:
+    App\Tests\Double\Winthor\InMemoryOrderGateway:
         public: true
-    App\Integration\Winthor\OrderGatewayInterface: '@App\Tests\Double\InMemoryOrderGateway'
-    App\Tests\Double\InMemoryMovementGateway:
+    App\Integration\Winthor\OrderGatewayInterface: '@App\Tests\Double\Winthor\InMemoryOrderGateway'
+    App\Tests\Double\Winthor\InMemoryMovementGateway:
         public: true
-    App\Integration\Winthor\MovementGatewayInterface: '@App\Tests\Double\InMemoryMovementGateway'
+    App\Integration\Winthor\MovementGatewayInterface: '@App\Tests\Double\Winthor\InMemoryMovementGateway'

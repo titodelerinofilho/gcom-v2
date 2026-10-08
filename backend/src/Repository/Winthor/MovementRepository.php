@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Repository\Winthor;
 
 use App\Database\Statement\Statement;
-use App\Exception\BusinessException;
+use App\Exception\Business\BusinessException;
 use App\Integration\Winthor\MovementGatewayInterface;
 
 final readonly class MovementRepository implements MovementGatewayInterface
@@ -17,13 +17,13 @@ final readonly class MovementRepository implements MovementGatewayInterface
     public function returns(string $customer, bool $atg, ?string $transaction = null): array
     {
         // Keep normal and ATG eligibility separate, as in includes/functions.php.
-        $eligibility = $atg
+        $eligibility = true === $atg
             ? '(M.NUMPED = 0 OR P.CONDVENDA IS NULL OR P.CONDVENDA <> 8)'
             : 'P.NUMPED IS NOT NULL AND P.CONDVENDA <> 8 AND C.CODPRACA NOT IN (573, 570, 539, 1097, 1098)';
         $period = null === $transaction
             ? 'M.DTMOV >= SYSDATE - 90 AND M.DTMOV <= SYSDATE'
             : 'M.NUMTRANSENT = :transaction';
-        $customerFilter = $atg
+        $customerFilter = true === $atg
             ? '(C.CODREVENDA = :customer OR C.CODCLI = :final_customer)'
             : 'C.CODREVENDA = :customer';
         $sql = <<<SQL
@@ -46,7 +46,7 @@ final readonly class MovementRepository implements MovementGatewayInterface
         if (null !== $transaction) {
             $parameters['transaction'] = $transaction;
 
-            if ($atg) {
+            if (true === $atg) {
                 $parameters['final_customer'] = $customer;
             }
         }
@@ -54,9 +54,10 @@ final readonly class MovementRepository implements MovementGatewayInterface
         return $this->statement->transaction(function () use ($sql, $parameters, $transaction): array {
             $rows = $this->statement->query($sql, $parameters)->fetchAllAssociative();
 
-            if (null !== $transaction && !$rows) {
+            if (null !== $transaction && [] === $rows) {
                 throw new BusinessException('Devolução inexistente ou fora dos critérios do legado.', 404);
             }
+
             $pricesSql = <<<'SQL'
                 SELECT NUMREGIAO, PTABELA1
                 FROM PCTABPR WHERE CODPROD = :product
@@ -65,17 +66,19 @@ final readonly class MovementRepository implements MovementGatewayInterface
             foreach ($rows as &$row) {
                 $product = (string) $row['CODPROD'];
 
-                if (!isset($prices[$product])) {
+                if (false === isset($prices[$product])) {
                     $prices[$product] = [];
                     foreach ($this->statement->query($pricesSql, ['product' => $product])->fetchAllAssociative() as $price) {
                         $region = (string) $price['NUMREGIAO'];
 
-                        if (array_key_exists($region, $prices[$product])) {
+                        if (true === array_key_exists($region, $prices[$product])) {
                             throw new BusinessException('Preço de devolução duplicado para produto/região.');
                         }
+
                         $prices[$product][$region] = $price['PTABELA1'];
                     }
                 }
+
                 $row['COMMISSION_RETURN_PRICES'] = $prices[$product];
             }
             unset($row);

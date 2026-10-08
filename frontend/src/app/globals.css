@@ -9,7 +9,7 @@
   --green: #098a14;
   --sidebar: 246px;
   font-family:
-    Inter,
+    system-ui,
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
@@ -859,17 +859,19 @@ td.number {
   margin: 0;
 }
 .form-description {
-  font-size: 12px;
-  color: #9298a6;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
 }
 .form-stack label,
 .login-form label {
   display: flex;
   flex-direction: column;
   gap: 9px;
-  font-size: 12px;
-  color: #676f7e;
-  font-weight: 500;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #344054;
+  font-weight: 600;
 }
 input,
 select,
@@ -1570,4 +1572,195 @@ legend {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.commission-review {
+  display: grid;
+  gap: 20px;
+  border-top: 1px solid var(--line);
+  padding-top: 24px;
+}
+.commission-summary .stat-grid {
+  margin: 0;
+}
+.commission-summary .stat-card {
+  min-width: 0;
+}
+.commission-summary .stat-card strong {
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  font-variant-numeric: tabular-nums;
+}
+.commission-summary .stat-card small {
+  display: block;
+  margin-top: 8px;
+  font-size: 12px;
+}
+.deduction-card {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+.deduction-card strong {
+  color: #9a3412;
+}
+.deduction-breakdown {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 16px 0 0;
+  padding: 16px 20px;
+  background: #f8fafc;
+  border-radius: 12px;
+}
+.deduction-breakdown div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px;
+}
+.deduction-breakdown dt {
+  font-size: 13px;
+  color: #475569;
+}
+.deduction-breakdown dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.calculation-orders {
+  min-width: 0;
+  display: grid;
+  gap: 16px;
+}
+.calculation-explanation {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.calculation-order {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  min-width: 0;
+}
+.calculation-order-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  background: #f8fafc;
+}
+.calculation-order-heading h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.calculation-order-heading span {
+  color: #475569;
+  font-size: 12px;
+}
+.calculation-product {
+  min-width: 210px;
+  max-width: 300px;
+  white-space: normal;
+}
+.calculation-product details {
+  margin-top: 8px;
+}
+.calculation-product summary,
+.commission-applied-deductions summary {
+  cursor: pointer;
+  color: #166534;
+  font-size: 12px;
+  font-weight: 600;
+}
+.calculation-product small {
+  white-space: normal;
+}
+.calculation-commission {
+  font-weight: 700;
+  background: #f0fdf4;
+}
+.calculation-order tfoot {
+  background: #f8fafc;
+  font-weight: 700;
+}
+.calculation-order-total {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  background: #f0fdf4;
+  font-size: 13px;
+}
+.calculation-history {
+  font-size: 12px;
+  padding: 0 16px;
+}
+.commission-applied-deductions summary {
+  padding: 12px 0;
+  font-size: 14px;
+}
+@media (max-width: 640px) {
+  .deduction-breakdown {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .commission-summary .stat-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.commission-review,
+.calculation-orders {
+  grid-template-columns: minmax(0, 1fr);
+}
+.commission-summary .stat-card {
+  display: block;
+}
+.commission-summary .stat-card.accent small {
+  color: #d4f4d7;
+}
+.calculation-order .table-wrap {
+  max-width: 100%;
+}
+
+.form-panel {
+  padding: 28px;
+}
+.form-panel .form-stack {
+  gap: 24px;
+}
+.form-panel .form-grid {
+  gap: 20px 24px;
+  margin-bottom: 0;
+}
+.form-panel .form-stack > .muted {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.form-panel .form-stack > .button {
+  align-self: flex-start;
+}
+.form-stack input,
+.form-stack select,
+.form-stack textarea {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+@media (max-width: 640px) {
+  .form-panel {
+    padding: 20px;
+  }
+  .form-panel .form-grid {
+    gap: 18px;
+  }
+  .form-stack input,
+  .form-stack select,
+  .form-stack textarea {
+    font-size: 16px;
+  }
 }

@@ -10,7 +10,7 @@ NODE = $(TOOLS) run --rm --no-deps frontend-tools
 export LOCAL_UID := $(shell id -u)
 export LOCAL_GID := $(shell id -g)
 
-.PHONY: help env config init build up down restart status logs migrate database-sync admin backup \
+.PHONY: help env config init build frontend-build up down restart status logs migrate database-sync admin backup \
 	backend-tools-build frontend-tools-build backend-deps frontend-deps deps \
 	phpcs phpcs-fix test backend-check frontend-check format check tools-down
 
@@ -34,6 +34,11 @@ init: config ## Gera segredos, compila, inicia serviços e aplica migrations.
 
 build: config ## Compila as imagens da aplicação.
 	$(COMPOSE) build postgres backend frontend nginx backup
+
+frontend-build: config ## Executa o build do Next.js e atualiza o frontend servido pelo Nginx.
+	$(COMPOSE) build frontend
+	$(COMPOSE) up -d --no-deps --wait frontend nginx
+	$(COMPOSE) exec -T nginx nginx -s reload
 
 up: config ## Inicia todos os serviços e aguarda os healthchecks.
 	$(COMPOSE) up -d --wait

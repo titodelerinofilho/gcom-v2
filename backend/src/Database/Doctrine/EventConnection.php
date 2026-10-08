@@ -25,10 +25,10 @@ final class EventConnection extends AbstractConnectionMiddleware
 
         try {
             return new EventStatement(parent::prepare($sql), $this->dispatcher, $sql);
-        } catch (Throwable $e) {
-            $this->dispatcher->dispatch(new DatabaseQueryEvent($sql, [], (hrtime(true) - $start) / 1e9, 'postgresql', 'prepare', $e));
+        } catch (Throwable $exception) {
+            $this->dispatcher->dispatch(new DatabaseQueryEvent($sql, [], (hrtime(true) - $start) / 1e9, 'postgresql', 'prepare', $exception));
 
-            throw $e;
+            throw $exception;
         }
     }
 
@@ -64,10 +64,10 @@ final class EventConnection extends AbstractConnectionMiddleware
 
         try {
             return $action();
-        } catch (Throwable $e) {
-            $exception = $e;
+        } catch (Throwable $exception) {
+            $exception = $exception;
 
-            throw $e;
+            throw $exception;
         } finally {
             $this->dispatcher->dispatch(new DatabaseQueryEvent($sql, [], (hrtime(true) - $start) / 1e9, 'postgresql', $operation, $exception));
         }

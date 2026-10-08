@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Repository\Winthor;
 
 use App\Database\Statement\Statement;
-use App\Exception\BusinessException;
+use App\Exception\Business\BusinessException;
 use App\Integration\Winthor\OrderGatewayInterface;
 
 final readonly class OrderRepository implements OrderGatewayInterface
@@ -39,7 +39,7 @@ final readonly class OrderRepository implements OrderGatewayInterface
 
     public function fetch(string $orderNumber): array
     {
-        if (!preg_match('/^[1-9][0-9]{0,11}$/D', $orderNumber)) {
+        if (1 !== preg_match('/^[1-9][0-9]{0,11}$/D', $orderNumber)) {
             throw new BusinessException('Número do pedido inválido.');
         }
 
@@ -52,9 +52,10 @@ final readonly class OrderRepository implements OrderGatewayInterface
                 SQL;
             $header = $this->statement->query($headerSql, ['order_number' => $orderNumber])->fetchAssociative();
 
-            if (!$header) {
+            if (false === $header) {
                 throw new BusinessException('Pedido não encontrado.', 404);
             }
+
             $customerSql = <<<'SQL'
                 SELECT C.CODCLI, C.CLIENTE, NVL(C.CODREVENDA, C.CODCLI) AS PRINCIPAL,
                        NVL(A.CLIENTE, C.CLIENTE) AS PRINCIPAL_NAME
@@ -64,9 +65,10 @@ final readonly class OrderRepository implements OrderGatewayInterface
                 SQL;
             $customer = $this->statement->query($customerSql, ['customer' => $header['CODCLI']])->fetchAssociative();
 
-            if (!$customer) {
+            if (false === $customer) {
                 throw new BusinessException('Cliente do pedido não encontrado.');
             }
+
             $header['COMMISSION_PRINCIPAL'] = (string) $customer['PRINCIPAL'];
             $header['COMMISSION_FINAL_CUSTOMER_NAME'] = $customer['CLIENTE'];
             $itemsSql = <<<'SQL'
@@ -78,9 +80,10 @@ final readonly class OrderRepository implements OrderGatewayInterface
                 SQL;
             $items = $this->statement->query($itemsSql, ['order_number' => $orderNumber])->fetchAllAssociative();
 
-            if (!$items) {
+            if ([] === $items) {
                 throw new BusinessException('Pedido sem itens faturados.');
             }
+
             $planSql = <<<'SQL'
                 SELECT NUMPR FROM PCPLPAG WHERE CODPLPAG = :plan
                 SQL;
@@ -101,11 +104,13 @@ final readonly class OrderRepository implements OrderGatewayInterface
                 $product = (string) $price['CODPROD'];
                 $region = (string) $price['NUMREGIAO'];
 
-                if (isset($prices[$product][$region])) {
+                if (true === isset($prices[$product][$region])) {
                     throw new BusinessException('Preço duplicado em PCTABPR para produto/região. Valide a chave da tabela com o DBA.');
                 }
+
                 $prices[$product][$region] = $price;
             }
+
             $compositionSql = <<<'SQL'
                 SELECT P.*, PC.CODPRECOCESTA, PC.NUMREGIAO AS COMPOSITION_REGION,
                        PC.CODFILIAL AS COMPOSITION_BRANCH, T.PVENDA1 AS PSD_UNIT
@@ -121,7 +126,7 @@ final readonly class OrderRepository implements OrderGatewayInterface
             $compositions = [];
 
             // Ordinary orders do not depend on the optional combo tables.
-            if (array_any($items, static fn (array $i): bool => str_contains(mb_strtoupper($i['DESCRICAO']), 'COMBO'))) {
+            if (true === array_any($items, static fn (array $i): bool => str_contains(mb_strtoupper($i['DESCRICAO']), 'COMBO'))) {
                 $componentPricesSql = <<<'SQL'
                     SELECT T.CODPROD, T.NUMREGIAO, T.PVENDA1
                     FROM PCTABPR T
@@ -135,16 +140,19 @@ final readonly class OrderRepository implements OrderGatewayInterface
                     $product = (string) $price['CODPROD'];
                     $region = (string) $price['NUMREGIAO'];
 
-                    if (isset($componentPrices[$product][$region])) {
+                    if (true === isset($componentPrices[$product][$region])) {
                         throw new BusinessException('Preço de componente duplicado em PCTABPR.');
                     }
+
                     $componentPrices[$product][$region] = $price['PVENDA1'];
                 }
+
                 foreach ($this->statement->query($compositionSql, ['order_number' => $orderNumber])->fetchAllAssociative() as $component) {
                     $component['COMMISSION_COMPONENT_PRICES'] = $componentPrices[(string) $component['CODPRODMP']] ?? [];
                     $compositions[(string) $component['CODPROD']][] = $component;
                 }
             }
+
             foreach ($items as &$item) {
                 $item['COMMISSION_COMPOSITION'] = $compositions[(string) $item['CODPROD']] ?? [];
                 $item['COMMISSION_PRICES'] = $prices[(string) $item['CODPROD']] ?? [];

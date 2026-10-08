@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Integration\Winthor;
 
-use App\Exception\BusinessException;
+use App\Exception\Business\BusinessException;
 
 final class PaymentSnapshotFactory
 {
@@ -21,7 +21,7 @@ final class PaymentSnapshotFactory
         }
 
         foreach ($row as &$value) {
-            if (is_resource($value)) {
+            if (true === is_resource($value)) {
                 $value = stream_get_contents($value);
             }
         }

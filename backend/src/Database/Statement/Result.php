@@ -57,7 +57,7 @@ final readonly class Result
             return NumberNormalizer::normalize((string) $value);
         }
 
-        return is_resource($value) ? stream_get_contents($value) : $value;
+        return true === is_resource($value) ? stream_get_contents($value) : $value;
     }
 
     public function rowCount(): int
@@ -73,7 +73,7 @@ final readonly class Result
     private function materialize(array $row): array
     {
         foreach ($row as $column => &$value) {
-            if (is_resource($value)) {
+            if (true === is_resource($value)) {
                 $value = stream_get_contents($value);
             }
 

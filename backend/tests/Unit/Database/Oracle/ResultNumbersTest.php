@@ -6,7 +6,7 @@ namespace App\Tests\Unit\Database\Oracle;
 
 use App\Database\Statement\Oracle\NumberNormalizer;
 use App\Database\Statement\Result;
-use App\Exception\DatabaseException;
+use App\Exception\Database\DatabaseException;
 use PDOStatement;
 use PHPUnit\Framework\TestCase;
 

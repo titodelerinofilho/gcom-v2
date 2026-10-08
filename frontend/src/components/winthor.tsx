@@ -77,8 +77,8 @@ export function WinthorPage() {
         title="Consultas da operação"
         text="Busque pedidos, devoluções, cancelamentos e títulos em atraso do cliente principal."
       />
-      <section className="panel detail-panel">
-        <form onSubmit={search}>
+      <section className="panel form-panel">
+        <form className="form-stack" onSubmit={search}>
           <div className="form-grid">
             <label>
               Consulta

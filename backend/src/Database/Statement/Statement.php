@@ -6,7 +6,7 @@ namespace App\Database\Statement;
 
 use App\Database\Connection\DatabaseConnection;
 use App\Database\Event\DatabaseQueryEvent;
-use App\Exception\DatabaseException;
+use App\Exception\Database\DatabaseException;
 use PDOException;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Throwable;
@@ -28,14 +28,12 @@ final readonly class Statement
             $statement->execute($query->parameters);
 
             return new Result($statement, normalizeOracleNumbers: 'oracle' === $this->connection->getName());
-        } catch (Throwable $e) {
-            $exception = $e;
-
-            if ($e instanceof PDOException) {
-                throw new DatabaseException('Falha ao executar consulta no banco externo.', previous: $e);
+        } catch (Throwable $exception) {
+            if ($exception instanceof PDOException) {
+                throw new DatabaseException('Falha ao executar consulta no banco externo.', previous: $exception);
             }
 
-            throw $e;
+            throw $exception;
         } finally {
             $this->dispatcher->dispatch(new DatabaseQueryEvent($query->sql, $query->parameters, (hrtime(true) - $start) / 1e9, $this->connection->getName(), 'query', $exception));
         }

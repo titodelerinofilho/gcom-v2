@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\EventListener\Logs;
 
-use App\Service\CorrelationService;
+use App\Service\Logs\CorrelationService;
 use Monolog\LogRecord;
 use Monolog\Processor\ProcessorInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;

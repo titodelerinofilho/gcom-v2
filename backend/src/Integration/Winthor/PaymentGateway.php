@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Integration\Winthor;
 
-use App\Exception\BusinessException;
+use App\Exception\Business\BusinessException;
 use App\Repository\Winthor\PclancRepository;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 

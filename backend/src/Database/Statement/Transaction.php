@@ -6,7 +6,7 @@ namespace App\Database\Statement;
 
 use App\Database\Connection\DatabaseConnection;
 use App\Database\Event\DatabaseQueryEvent;
-use App\Exception\DatabaseException;
+use App\Exception\Database\DatabaseException;
 use PDOException;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Throwable;
@@ -21,26 +21,28 @@ final readonly class Transaction
     {
         $pdo = $this->connection->getConnection();
 
-        if ($pdo->inTransaction()) {
+        if (true === $pdo->inTransaction()) {
             throw new DatabaseException('Transações aninhadas no banco externo não são permitidas.');
         }
+
         $this->control('begin', $pdo->beginTransaction(...));
 
         try {
-            if ($readOnly) {
+            if (true === $readOnly) {
                 $readOnlySql = 'SET TRANSACTION READ ONLY';
                 $statement->query($readOnlySql)->free();
             }
+
             $result = $operation();
             $this->control('commit', $pdo->commit(...));
 
             return $result;
-        } catch (Throwable $e) {
-            if ($pdo->inTransaction()) {
+        } catch (Throwable $exception) {
+            if (true === $pdo->inTransaction()) {
                 $this->control('rollback', $pdo->rollBack(...));
             }
 
-            throw $e;
+            throw $exception;
         }
     }
 
@@ -51,10 +53,10 @@ final readonly class Transaction
 
         try {
             $action();
-        } catch (PDOException $e) {
-            $exception = $e;
+        } catch (PDOException $exception) {
+            $exception = $exception;
 
-            throw new DatabaseException('Falha no controle da transação externa.', previous: $e);
+            throw new DatabaseException('Falha no controle da transação externa.', previous: $exception);
         } finally {
             $this->dispatcher->dispatch(new DatabaseQueryEvent(strtoupper($operation), [], (hrtime(true) - $start) / 1e9, $this->connection->getName(), $operation, $exception));
         }

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Dto\Commission\Output;
 
-use App\Entity\PaymentLink;
+use App\Entity\Commission\PaymentLink;
 
 final readonly class PaymentOutput
 {

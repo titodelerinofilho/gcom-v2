@@ -34,10 +34,10 @@ final class EventStatement extends AbstractStatementMiddleware
 
         try {
             return parent::execute();
-        } catch (Throwable $e) {
-            $exception = $e;
+        } catch (Throwable $exception) {
+            $exception = $exception;
 
-            throw $e;
+            throw $exception;
         } finally {
             $this->dispatcher->dispatch(new DatabaseQueryEvent($this->sql, $this->parameters, (hrtime(true) - $start) / 1e9, 'postgresql', 'query', $exception));
         }
