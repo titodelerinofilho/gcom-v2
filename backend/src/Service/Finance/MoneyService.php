@@ -38,6 +38,7 @@ final class MoneyService
     public static function net(string $gross, array $deductions): array
     {
         $sum = BigDecimal::of('0.00');
+
         foreach ($deductions as $value) {
             $sum = $sum->plus(self::positive($value));
         }

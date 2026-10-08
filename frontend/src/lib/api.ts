@@ -101,6 +101,7 @@ export type Payment = {
 };
 export type Commission = {
   id: number;
+  mode: "normal" | "atg";
   code: string;
   customerCode: string;
   customerName: string;
@@ -168,6 +169,9 @@ export type CalculationLine = {
   discountPercentage?: string;
   percentageApplied?: string;
   commissionBeforeFreight?: string;
+  commissionAmount?: string;
+  allocatedFreight?: string;
+  roundingAdjustment?: string;
   combo?: {
     components: {
       productCode: string;
@@ -194,11 +198,11 @@ export type CommissionRule = {
   version: number;
   percentage: string;
   basis: "margin_psd" | "margin_table" | "sales";
-  psdRegion?: number;
-  priceContexts?: PriceContext[];
-  returnPercentage?: string;
-  atgReturnPercentage?: string;
-  atgPercentage?: string;
+  psdRegion?: number | null;
+  priceContexts?: PriceContext[] | null;
+  returnPercentage?: string | null;
+  atgReturnPercentage?: string | null;
+  atgPercentage?: string | null;
   subtractFreight: boolean;
   applyReferenceDiscount: boolean;
   reason: string;

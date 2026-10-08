@@ -32,6 +32,7 @@ final readonly class PreviewCommissionService
     public function preview(PreviewCommissionInput $input, User $actor): PreviewCommissionOutput
     {
         $orders = [];
+
         foreach ($input->orderIds as $id) {
             $order = $this->orders->find($id);
 
@@ -43,9 +44,12 @@ final readonly class PreviewCommissionService
         }
 
         $this->cancellations->sync($orders[0]->getCustomerCode(), $actor);
+
         $pendingIds = $this->adjustments->pendingIds($orders[0]->getCustomerCode());
+
         $amounts = [];
         $adjustmentOutputs = [];
+
         foreach (array_unique([...$input->adjustmentIds, ...$pendingIds]) as $id) {
             $adjustment = $this->adjustments->find($id);
 
@@ -58,7 +62,9 @@ final readonly class PreviewCommissionService
         }
 
         $this->winthor->assertEligible(array_map(static fn (OrderSnapshot $order): string => $order->getOrderNumber(), $orders));
+
         $calculation = $this->calculator->calculate($orders, $this->rules->current(), $input->mode);
+
         $money = MoneyService::net($calculation['grossAmount'], $amounts);
 
         return new PreviewCommissionOutput($pendingIds, $calculation, $money['gross'], $money['deductions'], $money['net'], $adjustmentOutputs);

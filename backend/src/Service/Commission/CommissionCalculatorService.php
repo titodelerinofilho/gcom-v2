@@ -15,6 +15,7 @@ final class CommissionCalculatorService
     public function __construct(
         private readonly PriceContextResolverService $contexts,
         private readonly ComboPriceCalculatorService $combos,
+        private readonly CommissionItemAllocationService $itemAllocation,
     ) {
     }
 
@@ -119,6 +120,6 @@ final class CommissionCalculatorService
         $last = array_key_last($orderAmounts);
         $orderAmounts[$last]['grossAmount'] = (string) BigDecimal::of($orderAmounts[$last]['grossAmount'])->plus($gross->minus($allocated));
 
-        return ['mode' => $mode, 'effectiveBasis' => $basis, 'percentageApplied' => $percentage, 'orders' => $orderAmounts, 'version' => 'configured-v2', 'rule' => $rule, 'sales' => (string) $sales, 'reference' => (string) $reference, 'freight' => (string) $freight, 'deductedFreight' => (string) $deductedFreight, 'baseAmount' => (string) $base, 'grossAmount' => MoneyService::positive((string) $gross), 'items' => $lines, 'rounding' => 'half_up_final_gross_2_decimals'];
+        return $this->itemAllocation->allocate(['mode' => $mode, 'effectiveBasis' => $basis, 'percentageApplied' => $percentage, 'orders' => $orderAmounts, 'version' => 'configured-v2', 'rule' => $rule, 'sales' => (string) $sales, 'reference' => (string) $reference, 'freight' => (string) $freight, 'deductedFreight' => (string) $deductedFreight, 'baseAmount' => (string) $base, 'grossAmount' => MoneyService::positive((string) $gross), 'items' => $lines, 'rounding' => 'half_up_final_gross_2_decimals']);
     }
 }

@@ -19,6 +19,7 @@ final readonly class GetCommissionService
         private CommissionRepository $commissions,
         private PaymentLinkRepository $payments,
         private AdjustmentRepository $adjustments,
+        private CommissionItemAllocationService $itemAllocation,
     ) {
     }
 
@@ -28,6 +29,6 @@ final readonly class GetCommissionService
         $payment = $this->payments->findForCommission($commission);
         $adjustments = array_map(static fn (Adjustment $adjustment): AdjustmentOutput => new AdjustmentOutput($adjustment), $this->adjustments->findForCommission($commission));
 
-        return new CommissionOutput($commission, true, null === $payment ? null : new PaymentOutput($payment), $adjustments, true);
+        return new CommissionOutput($commission, true, null === $payment ? null : new PaymentOutput($payment), $adjustments, true, $this->itemAllocation->allocate($commission->getCalculation()));
     }
 }

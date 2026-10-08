@@ -41,9 +41,10 @@ final readonly class XlsxExportStrategy implements ReportFormatStrategyInterface
             $writer->addRow(Row::fromValues(array_values($columns), $style));
             $currency = (new Style())->setFormat('"R$" #,##0.00');
             foreach ($this->rows->rows($context) as $row) {
+                $atgStyle = 'ATG (Autoagenciamento)' === ($row['mode'] ?? '') ? (new Style())->setBackgroundColor('FFFBEB')->setFontBold()->setFontColor('92400E') : null;
                 $cells = [];
                 foreach ($row as $key => $value) {
-                    $cells[] = true === in_array($key, self::MONEY_COLUMNS, true) ? new NumericCell((float) $value, $currency) : new StringCell((string) $value, null);
+                    $cells[] = true === in_array($key, self::MONEY_COLUMNS, true) ? new NumericCell((float) $value, null === $atgStyle ? $currency : (clone $atgStyle)->setFormat('"R$" #,##0.00')) : new StringCell((string) $value, $atgStyle);
                 }
                 $writer->addRow(new Row($cells));
             }

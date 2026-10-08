@@ -29,6 +29,7 @@ final readonly class ApproveCommissionService
             }
 
             $commission->setStatus('approved')->setApprovedBy($actor)->setApprovedAt(new DateTimeImmutable());
+
             $this->audit->record($actor, 'commission.approved', $commission->getCode());
 
             return $commission;

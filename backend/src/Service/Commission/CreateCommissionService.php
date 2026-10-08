@@ -54,6 +54,7 @@ final readonly class CreateCommissionService
 
             $commission = new Commission();
             $orders = [];
+
             foreach ($orderIds as $id) {
                 $order = $this->orders->findLocked($id);
 
@@ -80,8 +81,11 @@ final readonly class CreateCommissionService
             }
 
             $adjustmentIds = array_values(array_unique([...$adjustmentIds, ...$pendingIds]));
+
             sort($adjustmentIds);
+
             $adjustments = [];
+
             foreach ($adjustmentIds as $id) {
                 $adjustment = $this->adjustments->findLocked($id);
 
@@ -93,9 +97,13 @@ final readonly class CreateCommissionService
             }
 
             $this->winthor->assertEligible(array_map(static fn (OrderSnapshot $order): string => $order->getOrderNumber(), $orders));
+
             $calculation = $this->calculator->calculate($orders, $rule, $input->mode);
+
             $money = MoneyService::net($calculation['grossAmount'], array_map(static fn ($adjustment) => $adjustment->getAmount(), $adjustments));
+
             $commission->setCreatedBy($actor)->setCustomerCode($orders[0]->getCustomerCode())->setCustomerName($orders[0]->getCustomerName())->setGrossAmount($money['gross'])->setDeductions($money['deductions'])->setNetAmount($money['net'])->setCalculation([...$calculation, 'reason' => $reason, 'adjustmentIds' => $adjustmentIds]);
+
             foreach ($orders as $order) {
                 $commission->addOrder($order);
             }

@@ -36,11 +36,15 @@ final readonly class SearchAvailableOrdersService
         }
 
         $rows = $this->winthor->search($input->customer, $input->from, $input->to, null);
+
         $numbers = array_map(static fn (array $row): string => (string) $row['NUMPED'], $rows);
+
         $assigned = [];
 
         if ([] !== $numbers) {
-            foreach ($this->snapshots->findBy(['orderNumber' => $numbers]) as $snapshot) {
+            $snapshots = $this->snapshots->findBy(['orderNumber' => $numbers]);
+
+            foreach ($snapshots as $snapshot) {
                 if (null !== $snapshot->getCommission()) {
                     $assigned[$snapshot->getOrderNumber()] = true;
                 }

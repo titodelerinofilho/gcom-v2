@@ -39,8 +39,11 @@ final readonly class PersistUserService
 
         return $this->users->save(function () use ($user, $name, $email, $roles, $active, $actor, $isNew) {
             $before = true === $isNew ? null : ['name' => $user->getName(), 'roles' => $user->getRoles(), 'active' => $user->getActive()];
+
             $user->setName($name)->setEmail($email)->setRoles($roles)->setActive($active);
+
             $this->users->store($user);
+
             $this->audit->record($actor, true === $isNew ? 'user.created' : 'user.updated', 'user:'.($user->getId() ?? 'new'), ['before' => $before, 'name' => $name, 'roles' => $roles, 'active' => $active]);
 
             return $user;

@@ -32,7 +32,7 @@ final readonly class PdfExportStrategy implements ReportFormatStrategyInterface
 
         $escape = static fn ($value) => htmlspecialchars((string) $value, \ENT_QUOTES | \ENT_SUBSTITUTE, 'UTF-8');
         $logo = base64_encode(file_get_contents($this->projectDir.'/public/logo-dts.png'));
-        $html = '<html><head><meta charset="UTF-8"><style>@page{margin:24px}body{font-family:DejaVu Sans;font-size:7px;color:#23332a}header{border-bottom:2px solid #098a14}img{width:105px}h1{display:inline;color:#098a14;font-size:23px}table{border-collapse:collapse;width:100%;table-layout:fixed;margin-top:16px}th{background:#098a14;color:white}td,th{padding:4px;border-bottom:1px solid #dde6df;overflow-wrap:break-word}tr{page-break-inside:avoid}thead{display:table-header-group}</style></head><body><header><img src="data:image/png;base64,'.$logo.'"><h1>GCOM</h1><p>'.$escape($title).' · '.$escape($criteria).'</p></header><table><thead><tr>';
+        $html = '<html><head><meta charset="UTF-8"><style>@page{margin:24px}body{font-family:DejaVu Sans;font-size:7px;color:#23332a}header{border-bottom:2px solid #098a14}img{width:105px}h1{display:inline;color:#098a14;font-size:23px}table{border-collapse:collapse;width:100%;table-layout:fixed;margin-top:16px}th{background:#098a14;color:white}td,th{padding:4px;border-bottom:1px solid #dde6df;overflow-wrap:break-word}tr{page-break-inside:avoid}thead{display:table-header-group}.atg td{background:#fffbeb}.atg .mode{font-weight:bold;color:#92400e}</style></head><body><header><img src="data:image/png;base64,'.$logo.'"><h1>GCOM</h1><p>'.$escape($title).' · '.$escape($criteria).'</p></header><table><thead><tr>';
         foreach ($columns as $label) {
             $html .= '<th>'.$escape($label).'</th>';
         }
@@ -42,10 +42,10 @@ final readonly class PdfExportStrategy implements ReportFormatStrategyInterface
             if (++$count > 1000) {
                 throw new BusinessException('PDF limitado a 1.000 registros. Reduza o período ou exporte XLSX/CSV.');
             }
-            $html .= '<tr>';
+            $html .= 'ATG (Autoagenciamento)' === ($row['mode'] ?? '') ? '<tr class="atg">' : '<tr>';
             foreach ($row as $key => $value) {
                 $display = true === in_array($key, self::MONEY_COLUMNS, true) ? 'R$ '.number_format((float) $value, 2, ',', '.') : $value;
-                $html .= '<td>'.$escape($display).'</td>';
+                $html .= '<td'.('mode' === $key ? ' class="mode"' : '').'>'.$escape($display).'</td>';
             }
             $html .= '</tr>';
         }

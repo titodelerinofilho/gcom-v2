@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace App\Entity\Order;
 
+use App\Repository\Order\OrderItemRepository;
 use Doctrine\ORM\Mapping as ORM;
 
-#[ORM\Entity(repositoryClass: \App\Repository\Order\OrderItemRepository::class)]
+#[ORM\Entity(repositoryClass: OrderItemRepository::class)]
 #[ORM\Table(name: 'order_item')]
 class OrderItem
 {

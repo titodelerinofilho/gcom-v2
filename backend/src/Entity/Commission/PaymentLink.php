@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace App\Entity\Commission;
 
 use App\Entity\User\User;
+use App\Repository\Commission\PaymentLinkRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 
-#[ORM\Entity(repositoryClass: \App\Repository\Commission\PaymentLinkRepository::class)]
+#[ORM\Entity(repositoryClass: PaymentLinkRepository::class)]
 #[ORM\Table(name: 'payment_link')]
 #[ORM\UniqueConstraint(name: 'payment_routine_reference_unique', columns: ['routine', 'reference'])]
 class PaymentLink

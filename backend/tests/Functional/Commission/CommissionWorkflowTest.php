@@ -64,6 +64,41 @@ final class CommissionWorkflowTest extends WebTestCase
         return $result;
     }
 
+    public function testHistoricalProductAllocationUsesSavedRuleWithoutWritingHistory(): void
+    {
+        $this->login('operator');
+        $created = $this->createCommission();
+        self::assertSame('normal', $created['mode']);
+        self::assertSame('100.00', $created['calculation']['items'][0]['commissionAmount']);
+        $snapshot = $created['calculation'];
+        unset($snapshot['itemAllocationVersion'], $snapshot['percentageApplied']);
+        foreach ($snapshot['items'] as &$item) {
+            unset($item['commissionAmount'], $item['allocatedFreight'], $item['roundingAdjustment'], $item['commissionBeforeFreight'], $item['percentageApplied']);
+        }
+        unset($item);
+
+        $em = self::getContainer()->get(EntityManagerInterface::class);
+        $historical = (new \App\Entity\Commission\Commission())->setCustomerCode('100')->setCustomerName('Cliente histórico')->setGrossAmount('100.00')->setNetAmount('100.00')->setCalculation($snapshot)->setCreatedBy($em->getRepository(User::class)->findOneBy(['email' => 'operator@example.test']));
+        $em->persist($historical);
+        $em->flush();
+        $id = $historical->getId();
+
+        $this->login('admin');
+        $this->call('POST', '/settings/commission-calculation', ['expectedVersion' => 1, 'percentage' => '60', 'basis' => 'margin_psd', 'priceContexts' => [['branch' => '*', 'orderRegion' => 2, 'psdRegion' => 1, 'pscfRegion' => 2]], 'atgPercentage' => '80', 'returnPercentage' => '80', 'atgReturnPercentage' => '100', 'subtractFreight' => true, 'applyReferenceDiscount' => false, 'reason' => 'Nova regra para conferir preservação histórica']);
+        self::assertResponseStatusCodeSame(201);
+        $db = self::getContainer()->get(EntityManagerInterface::class)->getConnection();
+        $auditCount = $db->fetchOne('SELECT COUNT(*) FROM audit_event');
+        $detail = $this->call('GET', '/commissions/'.$id);
+        self::assertResponseIsSuccessful();
+        self::assertSame('100.00', $detail['calculation']['items'][0]['commissionAmount']);
+        self::assertSame('80.0000', $detail['calculation']['items'][0]['percentageApplied']);
+        self::assertSame('100.00', $detail['grossAmount']);
+
+        $db = self::getContainer()->get(EntityManagerInterface::class)->getConnection();
+        self::assertSame($snapshot, json_decode($db->fetchOne('SELECT calculation FROM commission WHERE id = :id', ['id' => $id]), true, flags: \JSON_THROW_ON_ERROR));
+        self::assertSame($auditCount, $db->fetchOne('SELECT COUNT(*) FROM audit_event'));
+    }
+
     public function testAvailableOrdersRequirePrincipalAndPeriodAndExcludeCommissionedOrders(): void
     {
         $this->login('finance');
@@ -350,6 +385,11 @@ final class CommissionWorkflowTest extends WebTestCase
         self::assertSame('195.00', $preview['net']);
         $commission = $this->call('POST', '/commissions', ['orderIds' => [$order['id']], 'mode' => 'atg', 'ruleVersion' => 1, 'expectedAdjustmentIds' => $preview['adjustmentIds'], 'reason' => 'Autoagenciamento com sobrepreço e débito conferidos']);
         self::assertResponseStatusCodeSame(201);
+        self::assertSame('atg', $commission['mode']);
+        $listed = $this->call('GET', '/commissions');
+        self::assertSame('atg', $listed['items'][0]['mode']);
+        $detail = $this->call('GET', '/commissions/'.$commission['id']);
+        self::assertSame('atg', $detail['mode']);
         self::assertSame('margin_table', $commission['calculation']['effectiveBasis']);
         self::assertSame('300.000000', $commission['calculation']['items'][0]['unitReference']);
         $this->login('finance');
@@ -381,10 +421,29 @@ final class CommissionWorkflowTest extends WebTestCase
                 if ('csv' === $format) {
                     self::assertStringContainsString($commission['code'], $content);
                     self::assertStringNotContainsString('999', $content);
+
+                    if ('commissions' === $kind) {
+                        self::assertStringContainsString('ATG (Autoagenciamento)', $content);
+                    }
                 } elseif ('pdf' === $format) {
                     self::assertStringStartsWith('%PDF-', $content);
                 } else {
                     self::assertStringStartsWith('PK', $content);
+
+                    if ('commissions' === $kind) {
+                        $path = tempnam(sys_get_temp_dir(), 'gcom-atg-xlsx-');
+                        file_put_contents($path, $content);
+                        $zip = new ZipArchive();
+
+                        try {
+                            self::assertTrue($zip->open($path));
+                            self::assertStringContainsString('ATG (Autoagenciamento)', (string) $zip->getFromName('xl/sharedStrings.xml').(string) $zip->getFromName('xl/worksheets/sheet1.xml'));
+                            self::assertStringContainsString('FFFBEB', $zip->getFromName('xl/styles.xml'));
+                        } finally {
+                            $zip->close();
+                            unlink($path);
+                        }
+                    }
                 }
             }
         }

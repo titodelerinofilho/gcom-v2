@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { CommissionMode } from "./commission-mode";
 import { useEffect, useState, type FormEvent } from "react";
 import { api, money } from "@/lib/api";
 import { Heading } from "./collections";
@@ -209,14 +210,26 @@ export function ReportsPage() {
                           "Comissão do abatimento",
                           "Datas / Pagamento",
                         ]
-                    ).map((label) => (
-                      <th key={label}>{label}</th>
+                    ).map((label, index) => (
+                      <th
+                        key={label}
+                        className={
+                          true === (commissions ? [2, 3, 4] : [2]).includes(index)
+                            ? "number"
+                            : undefined
+                        }
+                      >
+                        {label}
+                      </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {data.items.map((row) => (
-                    <tr key={String(row.id)}>
+                    <tr
+                      key={String(row.id)}
+                      className={"atg" === row.mode ? "commission-atg-row" : undefined}
+                    >
                       {commissions ? (
                         <>
                           <td>
@@ -228,7 +241,7 @@ export function ReportsPage() {
                             </small>
                           </td>
                           <td>
-                            {labels[String(row.mode)] ?? row.mode}
+                            <CommissionMode mode={String(row.mode)} />
                             <small>{row.orders}</small>
                           </td>
                           <td className="number">{money(String(row.gross_amount))}</td>

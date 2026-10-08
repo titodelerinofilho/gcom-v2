@@ -21,8 +21,10 @@ final readonly class SearchReportService
     public function search(string $kind, SearchReportInput $input): SearchReportOutput
     {
         [$from, $to] = $this->criteria->range($input);
+
         $filters = $this->criteria->filters($input, $kind);
         $result = $this->repository->search($from, $to, $filters, $kind, $input->page);
+
         $items = array_map(static fn (array $row): CommissionReportRowOutput|AdjustmentReportRowOutput => 'commissions' === $kind ? new CommissionReportRowOutput($row) : new AdjustmentReportRowOutput($row), $result['items']);
 
         return new SearchReportOutput($items, $result['total'], $result['amount'], $result['page']);

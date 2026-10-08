@@ -6,12 +6,13 @@ namespace App\Entity\Commission;
 
 use App\Entity\Order\OrderSnapshot;
 use App\Entity\User\User;
+use App\Repository\Commission\CommissionRepository;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
-#[ORM\Entity(repositoryClass: \App\Repository\Commission\CommissionRepository::class)]
+#[ORM\Entity(repositoryClass: CommissionRepository::class)]
 #[ORM\Table(name: 'commission')]
 #[ORM\Index(name: 'commission_created_status_idx', columns: ['created_at', 'status'])]
 class Commission

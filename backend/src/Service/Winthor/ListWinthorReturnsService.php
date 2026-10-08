@@ -19,6 +19,7 @@ final readonly class ListWinthorReturnsService
     public function list(ListWinthorReturnsInput $input): WinthorRowsOutput
     {
         $rows = $this->gateway->returns($input->customer, $input->atg);
+
         $items = array_map(static fn (array $row): WinthorRowOutput => new WinthorRowOutput($row), $rows);
 
         return new WinthorRowsOutput($items);

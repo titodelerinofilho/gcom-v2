@@ -27,6 +27,7 @@ final readonly class LinkWinthorPaymentService
     {
         $recnum = $input->recnum;
         $details = $this->payments->fetch($recnum);
+
         $commission = $this->commissions->save(function () use ($id, $recnum, $details, $actor) {
             $commission = $this->commissions->locked($id);
 
@@ -41,6 +42,7 @@ final readonly class LinkWinthorPaymentService
             }
 
             $payment->linkWinthor($recnum, $details);
+
             $this->audit->record($actor, 'payment.winthor_linked', $commission->getCode(), ['routine' => '749', 'recnum' => $recnum, 'verification' => $payment->getVerification()]);
 
             return $commission;

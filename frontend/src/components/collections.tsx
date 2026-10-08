@@ -1,6 +1,8 @@
 "use client";
+import { CommissionMode } from "./commission-mode";
 import { CommissionSummary } from "./commission-summary";
 import { CalculationLines } from "./calculation-lines";
+import { commissionReferenceLabel } from "@/lib/commission";
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import { Plus, Download, ArrowUpRight, Check, Search, ShieldCheck, Pencil } from "lucide-react";
@@ -361,6 +363,7 @@ export function CommissionsPage() {
               <thead>
                 <tr>
                   <th>Comissão / Cliente</th>
+                  <th>Modalidade</th>
                   <th>Responsável</th>
                   <th>Data</th>
                   <th>Status</th>
@@ -370,10 +373,13 @@ export function CommissionsPage() {
               </thead>
               <tbody>
                 {list.data.items.map((c) => (
-                  <tr key={c.id}>
+                  <tr key={c.id} className={"atg" === c.mode ? "commission-atg-row" : undefined}>
                     <td>
                       <strong>{c.customerName}</strong>
                       <small className="mono">{c.code}</small>
+                    </td>
+                    <td>
+                      <CommissionMode mode={c.mode} />
                     </td>
                     <td>{c.createdBy.name}</td>
                     <td>{date(c.createdAt)}</td>
@@ -451,6 +457,17 @@ function NewCommission({ done }: { done: () => void }) {
 
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const selectableOrders = (orders ?? []).filter((order) => null !== order.priceContext);
+  const allOrdersSelected =
+    0 < selectableOrders.length &&
+    true === selectableOrders.every((order) => true === selected.includes(order.orderNumber));
+
+  function toggleAllOrders(checked: boolean) {
+    setPreview(undefined);
+    setOrderIds([]);
+    setSelected(true === checked ? selectableOrders.map((order) => order.orderNumber) : []);
+  }
 
   function clearSearch() {
     setOrders(null);
@@ -551,6 +568,7 @@ function NewCommission({ done }: { done: () => void }) {
 
   function toggle(number: string) {
     setPreview(undefined);
+    setOrderIds([]);
     setSelected(
       true === selected.includes(number)
         ? selected.filter((value) => value !== number)
@@ -667,6 +685,27 @@ function NewCommission({ done }: { done: () => void }) {
             Data do pedido no Winthor. Pedidos já comissionados são excluídos. Até 500 pedidos por
             busca; reduza o período quando necessário.
           </p>
+          {0 < orders.length && (
+            <label className="checkbox-row order-select-all">
+              <input
+                type="checkbox"
+                checked={allOrdersSelected}
+                disabled={true === busy || 0 === selectableOrders.length}
+                ref={(input) => {
+                  if (null !== input) {
+                    input.indeterminate = 0 < selected.length && false === allOrdersSelected;
+                  }
+                }}
+                onChange={(event) => toggleAllOrders(event.currentTarget.checked)}
+              />
+              <span>
+                <strong>Selecionar todos os pedidos</strong>
+                <small>
+                  {selected.length} de {selectableOrders.length} pedidos elegíveis selecionados
+                </small>
+              </span>
+            </label>
+          )}
           {orders.map((order) => (
             <label className="checkbox-row" key={order.orderNumber}>
               <input
@@ -686,9 +725,10 @@ function NewCommission({ done }: { done: () => void }) {
                 {null !== order.priceContext && (
                   <>
                     <small>
-                      Tabela/região do pedido: {order.priceContext.orderRegion} · PSD{" "}
-                      {order.priceContext.psdRegion} / PSCF {order.priceContext.pscfRegion ?? "—"} ·
-                      Regra #{order.priceContext.ruleVersion}
+                      Tabela/região do pedido: {order.priceContext.orderRegion} · PSD (Revenda){" "}
+                      {order.priceContext.psdRegion} / PSCF (Consumidor Final){" "}
+                      {order.priceContext.pscfRegion ?? "—"} · Regra #
+                      {order.priceContext.ruleVersion}
                     </small>
                     <small>
                       Plano {order.priceContext.paymentPlan} → {order.priceContext.priceColumn} nos
@@ -699,7 +739,7 @@ function NewCommission({ done }: { done: () => void }) {
                       {"atg" === mode
                         ? "PTABELA do item (ATG)"
                         : "margin_psd" === order.priceContext.normalBasis
-                          ? `PSD ${order.priceContext.psdRegion} / ${order.priceContext.priceColumn}`
+                          ? `PSD (Revenda) ${order.priceContext.psdRegion} / ${order.priceContext.priceColumn}`
                           : "margin_table" === order.priceContext.normalBasis
                             ? "PTABELA do item"
                             : "Valor de venda"}
@@ -770,7 +810,8 @@ function NewCommission({ done }: { done: () => void }) {
             adjustments={preview.adjustments}
           />
           <div className="notice info">
-            Venda {money(preview.calculation.sales)} − referência{" "}
+            Venda {money(preview.calculation.sales)} −{" "}
+            {commissionReferenceLabel(preview.calculation.effectiveBasis)}{" "}
             {money(preview.calculation.reference)} − frete{" "}
             {money(preview.calculation.deductedFreight)} = base{" "}
             {money(preview.calculation.baseAmount)}.
@@ -780,6 +821,7 @@ function NewCommission({ done }: { done: () => void }) {
             items={preview.calculation.items}
             orders={preview.calculation.orders}
             percentage={preview.calculation.percentageApplied}
+            basis={preview.calculation.effectiveBasis}
           />
           <details className="commission-applied-deductions">
             <summary>Deduções consideradas nesta simulação ({preview.adjustments.length})</summary>

@@ -34,6 +34,7 @@ final class ImportOrderService
 
         $order = $this->orders->save(function () use ($data, $actor) {
             $order = new OrderSnapshot($data['header'], $data['customerName'], $data['items']);
+
             $this->orders->store($order);
             $this->audit->record($actor, 'order.imported', 'order:'.$order->getOrderNumber(), ['items' => count($data['items'])]);
 

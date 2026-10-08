@@ -34,6 +34,7 @@ final readonly class CreateCommissionRuleService
 
         $basis = $input->basis;
         $contexts = $input->priceContexts;
+
         $atgPercentage = MoneyService::decimal($input->atgPercentage, 4);
         $returnPercentage = MoneyService::decimal($input->returnPercentage, 4);
         $atgReturnPercentage = MoneyService::decimal($input->atgReturnPercentage, 4);
@@ -44,6 +45,7 @@ final readonly class CreateCommissionRuleService
 
         $rule = $this->repository->save(function () use ($settings, $reason, $actor, $input) {
             $this->repository->lockVersion();
+
             $current = $this->currentRule->current();
 
             if ($input->expectedVersion !== $current['version']) {
@@ -51,7 +53,9 @@ final readonly class CreateCommissionRuleService
             }
 
             $rule = new CommissionRule($settings, $reason, $actor);
+
             $this->repository->store($rule);
+
             $this->audit->record($actor, 'commission_rule.changed', 'commission-rule:'.$rule->view()['version'], ['previous' => $current, 'current' => $rule->view()]);
 
             return $rule->view();

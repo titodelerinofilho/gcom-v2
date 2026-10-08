@@ -1,5 +1,7 @@
 import { money, type CalculationLine, type CalculationOrder, type Order } from "@/lib/api";
 
+import { commissionReferenceLabel } from "@/lib/commission";
+
 const unitMoney = (value: string) =>
   new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -12,21 +14,26 @@ export function CalculationLines({
   items,
   orders = [],
   percentage,
+  basis,
   snapshots = [],
 }: {
   items: CalculationLine[];
   orders?: CalculationOrder[];
   percentage?: string;
+  basis?: string;
   snapshots?: Order[];
 }) {
+  const referenceLabel = commissionReferenceLabel(basis);
   const orderNumbers = [...new Set(items.map((line) => line.orderNumber))];
 
   return (
     <div className="calculation-orders">
       <p className="muted calculation-explanation">
-        Confira a venda e a referência de cada produto. A comissão por produto considera a diferença
-        × percentual, antes do frete. O frete é descontado na base do pedido e o arredondamento
-        ocorre no total da comissão.
+        Confira os valores de venda e de {referenceLabel} de cada produto. A comissão por produto
+        considera a diferença entre venda e referência, desconta o frete proporcional ao valor
+        vendido e aplica o percentual. Os centavos são ajustados para a soma fechar com a comissão
+        bruta do pedido. Débitos, cancelamentos e devoluções são deduzidos depois, no total da
+        comissão.
       </p>
       {orderNumbers.map((number) => {
         const lines = items.filter((line) => line.orderNumber === number);
@@ -44,7 +51,7 @@ export function CalculationLines({
               <h3>Pedido #{number}</h3>
               <span>
                 {undefined !== context
-                  ? `Filial ${context.branch} · Tabela ${context.orderRegion} · PSD ${context.psdRegion} · PSCF ${context.pscfRegion}`
+                  ? `Filial ${context.branch} · Tabela ${context.orderRegion} · PSD (Revenda) ${context.psdRegion} · PSCF (Consumidor Final) ${context.pscfRegion}`
                   : "Referências preservadas no lançamento"}
               </span>
             </div>
@@ -56,11 +63,11 @@ export function CalculationLines({
                     <th className="number">Qtd.</th>
                     <th className="number">Venda unit.</th>
                     <th className="number">Venda total</th>
-                    <th className="number">Referência unit.</th>
-                    <th className="number">Referência total</th>
+                    <th className="number calculation-reference">{referenceLabel} unit.</th>
+                    <th className="number calculation-reference">{referenceLabel} total</th>
                     <th className="number">Diferença / base</th>
                     <th className="number">%</th>
-                    <th className="number">Comissão antes do frete</th>
+                    <th className="number calculation-commission">Comissão do produto</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -83,15 +90,24 @@ export function CalculationLines({
                             {undefined !== line.unit && "" !== line.unit ? ` · ${line.unit}` : ""}
                           </small>
                           <details>
-                            <summary>Conferir preços e composição</summary>
+                            <summary>Conferir cálculo e preços</summary>
+                            {undefined !== line.allocatedFreight && (
+                              <small>
+                                Frete rateado na base: {unitMoney(line.allocatedFreight)}
+                              </small>
+                            )}
+                            {undefined !== line.roundingAdjustment &&
+                              "0.00" !== line.roundingAdjustment && (
+                                <small>Ajuste de centavos: {money(line.roundingAdjustment)}</small>
+                              )}
                             <small>
-                              PSD unit.:{" "}
+                              PSD (Revenda) unit.:{" "}
                               {undefined === line.unitPsd || null === line.unitPsd
                                 ? "—"
                                 : unitMoney(line.unitPsd)}
                             </small>
                             <small>
-                              PSCF unit.:{" "}
+                              PSCF (Consumidor Final) unit.:{" "}
                               {undefined === line.unitPscf || null === line.unitPscf
                                 ? "—"
                                 : unitMoney(line.unitPscf)}
@@ -115,8 +131,8 @@ export function CalculationLines({
                               <small key={componentIndex}>
                                 Componente {component.productCode} ·{" "}
                                 {Number(component.quantityPerCombo).toLocaleString("pt-BR")} por
-                                combo · PSD {unitMoney(component.unitPsd)} / PSCF{" "}
-                                {unitMoney(component.unitPscf)}
+                                combo · PSD (Revenda) {unitMoney(component.unitPsd)} / PSCF
+                                (Consumidor Final) {unitMoney(component.unitPscf)}
                               </small>
                             ))}
                           </details>
@@ -139,9 +155,7 @@ export function CalculationLines({
                             : `${Number(appliedPercentage).toLocaleString("pt-BR")}%`}
                         </td>
                         <td className="number calculation-commission">
-                          {undefined === line.commissionBeforeFreight
-                            ? "—"
-                            : unitMoney(line.commissionBeforeFreight)}
+                          {undefined === line.commissionAmount ? "—" : money(line.commissionAmount)}
                         </td>
                       </tr>
                     );
@@ -154,9 +168,10 @@ export function CalculationLines({
                       <td className="number">{money(totals.sales)}</td>
                       <td />
                       <td className="number">{money(totals.reference)}</td>
-                      <td className="number" colSpan={3}>
+                      <td className="number" colSpan={2}>
                         Base após frete: {money(totals.baseAmount)}
                       </td>
+                      <td className="number calculation-commission">{money(totals.grossAmount)}</td>
                     </tr>
                   </tfoot>
                 )}
@@ -172,9 +187,10 @@ export function CalculationLines({
                 </span>
               </div>
             )}
-            {lines.some((line) => undefined === line.commissionBeforeFreight) && (
+            {lines.some((line) => undefined === line.commissionAmount) && (
               <p className="muted calculation-history">
-                Este lançamento histórico não preservou o valor individual da comissão por produto.
+                A memória deste lançamento não contém dados suficientes para conferir a comissão por
+                produto.
               </p>
             )}
           </section>

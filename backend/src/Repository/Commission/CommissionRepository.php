@@ -6,6 +6,7 @@ namespace App\Repository\Commission;
 
 use App\Entity\Commission\Commission;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\LockMode;
 use Doctrine\Persistence\ManagerRegistry;
 
 /** @extends ServiceEntityRepository<Commission> */
@@ -26,7 +27,7 @@ class CommissionRepository extends ServiceEntityRepository
 
     public function locked(int $id): Commission
     {
-        return $this->find($id, \Doctrine\DBAL\LockMode::PESSIMISTIC_WRITE) ?? throw new \App\Exception\Business\BusinessException('Comissão não encontrada.', 404);
+        return $this->find($id, LockMode::PESSIMISTIC_WRITE) ?? throw new \App\Exception\Business\BusinessException('Comissão não encontrada.', 404);
     }
 
     /**

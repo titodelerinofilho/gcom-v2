@@ -24,6 +24,7 @@ final readonly class ExportReportService
     public function export(string $kind, string $format, ExportReportInput $input, User $actor): ExportReportOutput
     {
         [$from, $to] = $this->criteria->range($input);
+
         $filters = $this->criteria->filters($input, $kind);
         $path = $this->exporter->generate($format, $from, $to, $filters, $kind);
 

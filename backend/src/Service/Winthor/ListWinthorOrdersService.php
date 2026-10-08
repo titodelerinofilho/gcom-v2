@@ -27,7 +27,13 @@ final readonly class ListWinthorOrdersService
             throw new BusinessException('Informe um período válido de até 366 dias.');
         }
 
-        $rows = $this->gateway->search($input->customer, $input->from, $input->to, $input->square);
+        $rows = $this->gateway->search(
+            $input->customer,
+            $input->from,
+            $input->to,
+            $input->square
+        );
+
         $items = array_map(static fn (array $row): WinthorRowOutput => new WinthorRowOutput($row), $rows);
 
         return new WinthorRowsOutput($items);

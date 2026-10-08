@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace App\Entity\Audit;
 
 use App\Entity\User\User;
+use App\Repository\Audit\AuditEventRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 
-#[ORM\Entity(repositoryClass: \App\Repository\Audit\AuditEventRepository::class)]
+#[ORM\Entity(repositoryClass: AuditEventRepository::class)]
 #[ORM\Table(name: 'audit_event')]
 #[ORM\Index(name: 'audit_created_idx', columns: ['created_at'])]
 #[ORM\Index(name: 'audit_subject_idx', columns: ['subject'])]

@@ -19,6 +19,7 @@ final class PriceContextResolverService
         }
 
         $fallback = null;
+
         foreach ($rule['priceContexts'] as $context) {
             if ($context['orderRegion'] !== $region) {
                 continue;

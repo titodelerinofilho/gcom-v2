@@ -208,7 +208,8 @@ export function Dashboard({ reports = false }: { reports?: boolean }) {
                   })}
                 </div>
                 <div className="panel-note">
-                  <ShieldIcon /> Vincule opcionalmente o RECNUM da rotina 749 ao pagamento.
+                  <ShieldIcon /> Vincule ao pagamento o lançamento de contas a pagar da rotina 749
+                  do Winthor, se necessário.
                 </div>
               </section>
             </div>

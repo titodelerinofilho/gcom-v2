@@ -16,10 +16,27 @@ final readonly class ReportRowsService
 
     public function rows(ReportExportContext $context): iterable
     {
-        foreach ($this->repository->export($context->from, $context->to, $context->filters, $context->kind) as $source) {
+        $data = $this->repository->export(
+            $context->from,
+            $context->to,
+            $context->filters,
+            $context->kind
+        );
+
+        foreach ($data as $source) {
             $row = [];
+
             foreach ($context->columns as $key => $label) {
                 $row[$key] = $source[$key] ?? '';
+            }
+
+            if (true === array_key_exists('mode', $row)) {
+                $row['mode'] = match ($row['mode']) {
+                    'atg' => 'ATG (Autoagenciamento)',
+                    'normal' => 'Normal',
+                    'unspecified' => 'Não informado',
+                    default => $row['mode'],
+                };
             }
 
             yield $row;

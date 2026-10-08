@@ -51,9 +51,10 @@ final readonly class ImportReturnService
                 throw new BusinessException('NUMTRANSENT já registrado. A devolução não pode ser deduzida duas vezes.', 409);
             }
 
-            $adjustment = (new Adjustment())->setCustomerCode(reset($principals))->setType('return')->setAmount($snapshot['amount'])
+            $adjustment = new Adjustment()->setCustomerCode(reset($principals))->setType('return')->setAmount($snapshot['amount'])
                 ->setReason('Devolução Winthor calculada pela diferença entre PUNIT e PTABELA1 PSD.')->setSourceReference('NUMTRANSENT '.$numtransent)->setCreatedBy($actor)
                 ->captureSource($source, $snapshot);
+
             $this->adjustments->store($adjustment);
             $this->audit->record($actor, 'return.imported', $source, ['amount' => $snapshot['amount'], 'ruleVersion' => $snapshot['rule']['version'], 'items' => count($snapshot['items'])]);
 

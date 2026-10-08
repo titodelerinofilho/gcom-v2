@@ -26,6 +26,8 @@ final readonly class CommissionOutput implements JsonSerializable
 
     public string $netAmount;
 
+    public string $mode;
+
     public string $status;
 
     public string $createdAt;
@@ -48,6 +50,7 @@ final readonly class CommissionOutput implements JsonSerializable
         public ?PaymentOutput $payment = null,
         public array $adjustments = [],
         private bool $includePayment = false,
+        ?array $calculation = null,
     ) {
         $this->id = $commission->getId();
         $this->code = $commission->getCode();
@@ -56,12 +59,13 @@ final readonly class CommissionOutput implements JsonSerializable
         $this->grossAmount = $commission->getGrossAmount();
         $this->deductions = $commission->getDeductions();
         $this->netAmount = $commission->getNetAmount();
+        $this->mode = $commission->getCalculation()['mode'] ?? 'normal';
         $this->status = $commission->getStatus();
         $this->createdAt = $commission->getCreatedAt()->format(\DATE_ATOM);
         $this->createdBy = new CommissionActorOutput($commission->getCreatedBy());
         $this->approvedBy = $commission->getApprovedBy()?->getName();
         $this->approvedAt = $commission->getApprovedAt()?->format(\DATE_ATOM);
-        $this->calculation = true === $detail ? $commission->getCalculation() : [];
+        $this->calculation = true === $detail ? ($calculation ?? $commission->getCalculation()) : [];
         $this->orders = true === $detail ? array_map(static fn (OrderSnapshot $order): OrderOutput => new OrderOutput($order, true), $commission->getOrders()->toArray()) : [];
     }
 

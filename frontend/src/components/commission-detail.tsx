@@ -1,12 +1,14 @@
 "use client";
+import { WinthorPayableReference } from "./winthor-payable-reference";
+import { CommissionMode } from "./commission-mode";
 import { CommissionSummary } from "./commission-summary";
 import { CalculationLines } from "./calculation-lines";
+import { commissionReferenceLabel } from "@/lib/commission";
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import { ArrowLeft, Check, Printer, Link2, Wallet, ShieldCheck } from "lucide-react";
 import { api, date, money, type Commission } from "@/lib/api";
 import { allowed, useUser } from "./shell";
-import { OrderDetails } from "./collections";
 import { Loading, Modal, ErrorNotice, Status } from "./ui";
 export function CommissionDetail({ id }: { id: string }) {
   const user = useUser();
@@ -101,6 +103,7 @@ export function CommissionDetail({ id }: { id: string }) {
       </div>
       <ErrorNotice message={error} />
       <div className="commission-strip">
+        <CommissionMode mode={data.mode ?? data.calculation?.mode} detailed />
         <Status value={data.status} />
         <span>
           Criada por <strong>{data.createdBy.name}</strong> em {date(data.createdAt)}
@@ -131,14 +134,17 @@ export function CommissionDetail({ id }: { id: string }) {
               Regra #{data.calculation.rule.version} ·{" "}
               {Number(data.calculation.percentageApplied ?? data.calculation.rule.percentage)}% ·{" "}
               {(data.calculation.effectiveBasis ?? data.calculation.rule.basis) === "margin_psd"
-                ? `Margem PSD por filial/tabela`
+                ? `Margem PSD (Revenda) por filial/tabela`
                 : (data.calculation.effectiveBasis ?? data.calculation.rule.basis) ===
                     "margin_table"
                   ? "Margem PTABELA"
                   : "Venda dos itens"}
             </strong>
             <p>
-              Venda {money(data.calculation.sales ?? "0")} − referência{" "}
+              Venda {money(data.calculation.sales ?? "0")} −{" "}
+              {commissionReferenceLabel(
+                data.calculation.effectiveBasis ?? data.calculation.rule.basis,
+              )}{" "}
               {money(data.calculation.reference ?? "0")} − frete{" "}
               {money(data.calculation.deductedFreight ?? "0")} = base{" "}
               {money(data.calculation.baseAmount ?? "0")}.
@@ -152,6 +158,7 @@ export function CommissionDetail({ id }: { id: string }) {
             orders={data.calculation.orders}
             percentage={data.calculation.percentageApplied ?? data.calculation.rule?.percentage}
             snapshots={data.orders}
+            basis={data.calculation.effectiveBasis ?? data.calculation.rule?.basis}
           />
         )}
         {data.calculation?.items && (
@@ -205,15 +212,6 @@ export function CommissionDetail({ id }: { id: string }) {
           </div>
         </section>
       )}
-      {data.orders?.map((o) => (
-        <section className="panel detail-panel" key={o.id}>
-          <div className="panel-heading">
-            <h2>Pedido #{o.orderNumber}</h2>
-            <span className="tag">{o.itemCount} itens</span>
-          </div>
-          <OrderDetails order={o} />
-        </section>
-      ))}
       {data.payment && (
         <section className="panel detail-panel">
           <div className="panel-heading">
@@ -223,10 +221,10 @@ export function CommissionDetail({ id }: { id: string }) {
                 {date(data.payment.paidAt)} · Confirmado por {data.payment.confirmedBy}
               </p>
             </div>
-            {allowed(user, "ROLE_FINANCE") && !data.payment.winthor && (
+            {allowed(user, "ROLE_FINANCE") && null === data.payment.winthor && (
               <button className="button secondary" onClick={() => setModal("link")}>
                 <Link2 size={16} />
-                Vincular RECNUM
+                Vincular lançamento Winthor
               </button>
             )}
           </div>
@@ -255,49 +253,8 @@ export function CommissionDetail({ id }: { id: string }) {
             </div>
           )}
           <p className="preserve-lines">{data.payment.notes}</p>
-          {data.payment.winthor && (
-            <div className="payment-reference">
-              <span className="eyebrow">WINTHOR · ROTINA 749</span>
-              <h3>RECNUM {data.payment.winthor.recnum}</h3>
-              <p>
-                {data.payment.winthor.verification === "winthor_lookup"
-                  ? "Lançamento localizado em PCLANC. Detalhes preservados no momento do vínculo."
-                  : "Referência informada manualmente. Consulta ao Winthor não habilitada."}
-              </p>
-              {data.payment.winthor.details && (
-                <div>
-                  {data.payment.winthor.details.records.map((record, i) => (
-                    <section key={String(record.RECNUM ?? i)}>
-                      <h4>Registro PCLANC · RECNUM {String(record.RECNUM)}</h4>
-                      <dl className="winthor-details">
-                        {Object.entries(record)
-                          .filter(([key, value]) => {
-                            const field = key.toUpperCase();
-                            const hasValue =
-                              null !== value &&
-                              undefined !== value &&
-                              "" !== String(value).trim() &&
-                              "—" !== String(value).trim();
-                            const isInternalField =
-                              "INDICE" === field ||
-                              "VERSAO" === field ||
-                              "VERSAOROTINA" === field ||
-                              "VERSION" === field;
-
-                            return true === hasValue && false === isInternalField;
-                          })
-                          .map(([key, value]) => (
-                            <div key={key}>
-                              <dt>{key}</dt>
-                              <dd>{String(value)}</dd>
-                            </div>
-                          ))}
-                      </dl>
-                    </section>
-                  ))}
-                </div>
-              )}
-            </div>
+          {null !== data.payment.winthor && (
+            <WinthorPayableReference reference={data.payment.winthor} />
           )}
         </section>
       )}
@@ -307,7 +264,7 @@ export function CommissionDetail({ id }: { id: string }) {
             modal === "pay"
               ? "Confirmar pagamento"
               : modal === "link"
-                ? "Vincular lançamento da rotina 749"
+                ? "Vincular contas a pagar · rotina 749"
                 : "Aprovar comissão"
           }
           close={() => {
@@ -392,7 +349,7 @@ export function CommissionDetail({ id }: { id: string }) {
                   </>
                 )}
                 <label>
-                  RECNUM da rotina 749 {modal === "pay" ? "(opcional)" : ""}
+                  Número do lançamento no Winthor {modal === "pay" ? "(opcional)" : ""}
                   <input
                     name="recnum"
                     inputMode="numeric"
@@ -404,8 +361,8 @@ export function CommissionDetail({ id }: { id: string }) {
                 </label>
                 <p className="form-description">
                   {modal === "pay"
-                    ? "Você pode confirmar sem RECNUM e vincular o lançamento depois. Ao informar, o sistema consulta a linha correspondente na PCLANC e guarda os detalhes."
-                    : "O vínculo consulta o RECNUM em PCLANC e preserva os detalhes do registro. Confira valor e beneficiário antes de associar."}
+                    ? "Informe o número do lançamento de contas a pagar da rotina 749 do Winthor. Você pode confirmar o pagamento e vincular o lançamento depois."
+                    : "Use o número do lançamento da rotina 749 — Lançamento de contas a pagar. Confira o valor e o favorecido antes de vincular."}
                 </p>
               </>
             )}

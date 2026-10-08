@@ -6,7 +6,7 @@ import { allowed, useUser } from "./shell";
 import { ErrorNotice, Loading, Pagination } from "./ui";
 
 export const basisLabels = {
-  margin_psd: "Margem sobre tabela PSD",
+  margin_psd: "Margem sobre tabela PSD (Revenda)",
   margin_table: "Margem sobre PTABELA do item",
   sales: "Valor de venda dos itens",
 };
@@ -149,8 +149,8 @@ export function CalculationSettings() {
                   <tr>
                     <th>Filial</th>
                     <th>Tabela do pedido</th>
-                    <th>PSD</th>
-                    <th>PSCF</th>
+                    <th>PSD (Revenda)</th>
+                    <th>PSCF (Consumidor Final)</th>
                     <th>Ação</th>
                   </tr>
                 </thead>
@@ -272,9 +272,9 @@ export function CalculationSettings() {
                     <td>
                       {Number(r.percentage)}% · {basisLabels[r.basis]}
                       <small>
-                        {r.priceContexts
+                        {true === Array.isArray(r.priceContexts)
                           ? `${r.priceContexts.length} pareamentos por filial/tabela`
-                          : `Região ${r.psdRegion} (histórico)`}{" "}
+                          : `PSD (Revenda): região ${r.psdRegion ?? "não informada"} (histórico)`}{" "}
                         · Frete {r.subtractFreight ? "descontado" : "incluído"} · Desconto{" "}
                         {r.applyReferenceDiscount ? "aplicado" : "desativado"}
                       </small>

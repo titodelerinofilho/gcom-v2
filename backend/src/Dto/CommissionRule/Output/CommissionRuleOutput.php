@@ -12,13 +12,15 @@ final readonly class CommissionRuleOutput
 
     public string $basis;
 
-    public array $priceContexts;
+    public ?int $psdRegion;
 
-    public string $atgPercentage;
+    public ?array $priceContexts;
 
-    public string $returnPercentage;
+    public ?string $atgPercentage;
 
-    public string $atgReturnPercentage;
+    public ?string $returnPercentage;
+
+    public ?string $atgReturnPercentage;
 
     public bool $subtractFreight;
 
@@ -35,10 +37,11 @@ final readonly class CommissionRuleOutput
         $this->version = $rule['version'];
         $this->percentage = $rule['percentage'];
         $this->basis = $rule['basis'];
-        $this->priceContexts = $rule['priceContexts'];
-        $this->atgPercentage = $rule['atgPercentage'];
-        $this->returnPercentage = $rule['returnPercentage'];
-        $this->atgReturnPercentage = $rule['atgReturnPercentage'];
+        $this->psdRegion = $rule['psdRegion'] ?? null;
+        $this->priceContexts = $rule['priceContexts'] ?? null;
+        $this->atgPercentage = $rule['atgPercentage'] ?? null;
+        $this->returnPercentage = $rule['returnPercentage'] ?? null;
+        $this->atgReturnPercentage = $rule['atgReturnPercentage'] ?? null;
         $this->subtractFreight = $rule['subtractFreight'];
         $this->applyReferenceDiscount = $rule['applyReferenceDiscount'];
         $this->reason = $rule['reason'];
