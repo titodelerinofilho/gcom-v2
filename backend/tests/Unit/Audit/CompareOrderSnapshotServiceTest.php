@@ -20,11 +20,14 @@ final class CompareOrderSnapshotServiceTest extends TestCase
     public function testNumericFormattingAndCurrentPriceTablesDoNotChangeTheSavedOrder(): void
     {
         $source = $this->source();
+
         $snapshot = new OrderSnapshot($source['header'], 'Cliente', $source['items']);
+
         $current = $source;
         $current['items'][0]['QT'] = '1';
         $current['items'][0]['COMMISSION_PRICES'] = ['1' => '90'];
-        $output = (new CompareOrderSnapshotService())->compare($snapshot, $current);
+
+        $output = new CompareOrderSnapshotService()->compare($snapshot, $current);
 
         self::assertSame('unchanged', $output->status);
         self::assertSame([], $output->changes);
@@ -34,8 +37,11 @@ final class CompareOrderSnapshotServiceTest extends TestCase
     public function testMissingOrdersAndRemovedProductsAreReported(): void
     {
         $source = $this->source();
+
         $snapshot = new OrderSnapshot($source['header'], 'Cliente', $source['items']);
-        $output = (new CompareOrderSnapshotService())->compare($snapshot, ['header' => null, 'items' => [], 'invoices' => []]);
+
+        $output = new CompareOrderSnapshotService()
+            ->compare($snapshot, ['header' => null, 'items' => [], 'invoices' => []]);
 
         self::assertSame('missing', $output->status);
         self::assertCount(2, $output->changes);
@@ -45,9 +51,12 @@ final class CompareOrderSnapshotServiceTest extends TestCase
     public function testNewProductsAndInvoicesAreReported(): void
     {
         $source = $this->source();
+
         $snapshot = new OrderSnapshot($source['header'], 'Cliente', []);
+
         $source['invoices'] = [['NUMTRANSVENDA' => '700', 'NUMNOTA' => '900', 'DTCANCEL' => null]];
-        $output = (new CompareOrderSnapshotService())->compare($snapshot, $source);
+
+        $output = new CompareOrderSnapshotService()->compare($snapshot, $source);
 
         self::assertSame('changed', $output->status);
         self::assertCount(2, $output->changes);
@@ -58,10 +67,14 @@ final class CompareOrderSnapshotServiceTest extends TestCase
     public function testOldSnapshotsDoNotPretendToHaveAnInvoiceBaseline(): void
     {
         $source = $this->source();
+
         unset($source['header']['COMMISSION_INVOICES']);
+
         $snapshot = new OrderSnapshot($source['header'], 'Cliente', $source['items']);
+
         $source['invoices'] = [['NUMNOTA' => '900', 'DTCANCEL' => '2026-10-08']];
-        $output = (new CompareOrderSnapshotService())->compare($snapshot, $source);
+
+        $output = new CompareOrderSnapshotService()->compare($snapshot, $source);
 
         self::assertSame('incomplete', $output->status);
         self::assertFalse($output->invoiceBaselineAvailable);

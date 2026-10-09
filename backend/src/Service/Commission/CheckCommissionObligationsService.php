@@ -14,6 +14,7 @@ use App\Service\Adjustment\CancellationSynchronizerService;
 use App\Service\Adjustment\ReturnSynchronizerService;
 use App\Service\Finance\MoneyService;
 use Brick\Math\BigDecimal;
+use Brick\Math\RoundingMode;
 use DateTimeImmutable;
 
 final readonly class CheckCommissionObligationsService
@@ -59,7 +60,7 @@ final readonly class CheckCommissionObligationsService
                 continue;
             }
             $first = $lines[0];
-            $candidates[] = new ReturnCandidateOutput($transaction, (string) $first['NUMNOTA'], (string) ($first['FINAL_CUSTOMER'] ?? $first['CODCLI'] ?? $customer), (string) ($first['CLIENTE'] ?? ''), $first['MOVEMENT_DATE'] ?? null, array_values(array_unique(array_map(static fn (array $line): string => (string) $line['NUMPED'], $lines))), $existing?->getAmount(), null === $selectedReturns ? null !== $existing : true === in_array($transaction, $selectedReturns, true), $returnItems[$transaction]);
+            $candidates[] = new ReturnCandidateOutput($transaction, (string) $first['NUMNOTA'], (string) ($first['FINAL_CUSTOMER'] ?? $first['CODCLI'] ?? $customer), (string) ($first['CLIENTE'] ?? ''), $first['MOVEMENT_DATE'] ?? null, array_values(array_unique(array_map(static fn (array $line): string => (string) $line['NUMPED'], $lines))), $existing?->getAmount(), null === $selectedReturns ? null !== $existing : true === in_array($transaction, $selectedReturns, true), $returnItems[$transaction], $this->productsAmount($existing?->getSourceSnapshot()['sourceRows'] ?? $lines));
         }
         $this->cancellations->sync($customer, $actor);
 
@@ -88,5 +89,27 @@ final readonly class CheckCommissionObligationsService
         usort($canonicalTitles, static fn (array $first, array $second): int => [$first['customerCode'], $first['transaction'], $first['installment']] <=> [$second['customerCode'], $second['transaction'], $second['installment']]);
 
         return new CommissionChecksOutput($customer, (new DateTimeImmutable())->format(\DATE_ATOM), $titles, MoneyService::normalize((string) $total), count($candidates), $candidates, hash('sha256', json_encode(['titles' => $canonicalTitles, 'returns' => $grouped, 'returnPayments' => $returnItems], \JSON_THROW_ON_ERROR)));
+    }
+
+    /** @param list<array<string, mixed>> $lines */
+    private function productsAmount(array $lines): ?string
+    {
+        if ([] === $lines) {
+            return null;
+        }
+
+        $total = BigDecimal::of(0);
+
+        foreach ($lines as $line) {
+            if (false === isset($line['QT'], $line['PUNIT'])) {
+                return null;
+            }
+
+            $quantity = MoneyService::decimal((string) $line['QT'], 6);
+            $unitPrice = MoneyService::decimal((string) $line['PUNIT'], 6);
+            $total = $total->plus(BigDecimal::of($quantity)->multipliedBy($unitPrice));
+        }
+
+        return (string) $total->toScale(2, RoundingMode::HalfUp);
     }
 }

@@ -89,6 +89,7 @@ deduções para um novo lançamento. Consultas e importações não alteram o Wi
   e são preservados como snapshot. A localização do lançamento não comprova, por si só,
   a conciliação do valor, beneficiário ou baixa financeira.
 - Dashboard, evolução mensal, ranking de clientes, relatórios PDF/XLSX/CSV e comprovante imprimível.
+- FAQ e ajuda no menu, com guia dos processos, passos por área e busca nas perguntas frequentes.
 - [Ficha do Cliente Revenda](docs/reseller-profile.md), com vendas agenciadas, comissões pagas,
   devoluções abatidas, débitos da carteira, classificação Ouro/Prata/Bronze e PDF próprio para impressão.
 - Auditoria de alterações e logs Monolog capturados por listeners em `EventListener/Logs`, com identificador de requisição.

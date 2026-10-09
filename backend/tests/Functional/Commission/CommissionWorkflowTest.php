@@ -180,6 +180,8 @@ final class CommissionWorkflowTest extends WebTestCase
         self::assertSame('250.00', $preview['checks']['overdueTotal']);
         self::assertSame('200', $preview['checks']['overdueTitles'][0]['customerCode']);
         self::assertSame('901', $preview['checks']['returns'][0]['transaction']);
+        self::assertSame('400.00', $preview['checks']['returns'][0]['productsAmount']);
+        self::assertNull($preview['checks']['returns'][0]['deductionAmount']);
         $db = self::getContainer()->get(EntityManagerInterface::class)->getConnection();
         self::assertSame(0, (int) $db->fetchOne('SELECT COUNT(*) FROM adjustment'));
 
@@ -188,6 +190,8 @@ final class CommissionWorkflowTest extends WebTestCase
         self::assertSame('40.00', $selected['deductions']);
         self::assertSame('60.00', $selected['net']);
         self::assertTrue($selected['checks']['returns'][0]['selected']);
+        self::assertSame('400.00', $selected['checks']['returns'][0]['productsAmount']);
+        self::assertSame('40.00', $selected['checks']['returns'][0]['deductionAmount']);
         $again = $this->call('POST', '/commissions/preview', [...$input, 'returnTransactions' => ['901']]);
         self::assertSame($selected['adjustmentIds'], $again['adjustmentIds']);
         $unselected = $this->call('POST', '/commissions/preview', $input);

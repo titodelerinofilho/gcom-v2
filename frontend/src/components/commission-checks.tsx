@@ -115,9 +115,17 @@ export function CommissionChecksPanel({
                   {null !== item.date ? ` · ${date(item.date)}` : ""}
                 </small>
                 <small>
+                  Total dos produtos devolvidos:{" "}
+                  <strong>
+                    {undefined === item.productsAmount || null === item.productsAmount
+                      ? "Não disponível"
+                      : money(item.productsAmount)}
+                  </strong>
+                </small>
+                <small>
                   {null === item.deductionAmount
                     ? "O valor da dedução será calculado ao selecionar e simular."
-                    : `Dedução: ${money(item.deductionAmount)}`}
+                    : `Dedução da comissão: ${money(item.deductionAmount)}`}
                 </small>
               </span>
             </label>

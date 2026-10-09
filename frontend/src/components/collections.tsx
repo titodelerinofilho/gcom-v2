@@ -5,7 +5,7 @@ import { CommissionSummary } from "./commission-summary";
 import { CalculationLines } from "./calculation-lines";
 import { commissionReferenceLabel } from "@/lib/commission";
 import Link from "next/link";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Plus, Download, ArrowUpRight, Check, Search, ShieldCheck, Pencil } from "lucide-react";
 import {
   api,
@@ -22,7 +22,7 @@ import {
   type CommissionSquare,
 } from "@/lib/api";
 import { useUser, allowed } from "./shell";
-import { Empty, ErrorNotice, Loading, Modal, Pagination, Status } from "./ui";
+import { ActionErrorNotice, Empty, ErrorNotice, Loading, Modal, Pagination, Status } from "./ui";
 function useCollection<T>(path: string) {
   const [page, setPage] = useState(1);
   const [data, setData] = useState<Page<T>>();
@@ -79,12 +79,14 @@ export function FieldsForm({
   done,
   label = "Salvar",
   submitDisabled = false,
+  errorPlacement = "top",
 }: {
   children: React.ReactNode;
   submit: (f: FormData) => Promise<unknown>;
   done: () => void;
   label?: string;
   submitDisabled?: boolean;
+  errorPlacement?: "top" | "actions";
 }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -103,8 +105,9 @@ export function FieldsForm({
   }
   return (
     <form onSubmit={send} className="form-stack">
-      <ErrorNotice message={error} />
+      {"top" === errorPlacement && <ErrorNotice message={error} />}
       {children}
+      {"actions" === errorPlacement && <ActionErrorNotice message={error} />}
       <div className="form-actions">
         <button className="button primary" disabled={busy || submitDisabled}>
           {busy ? "Salvando…" : label}
@@ -487,7 +490,7 @@ function NewCommission({ done }: { done: () => void }) {
         if (true === active) setSquares(items);
       })
       .catch((exception: Error) => {
-        if (true === active) setError(exception.message);
+        if (true === active) setSearchError(exception.message);
       });
     return () => {
       active = false;
@@ -497,8 +500,18 @@ function NewCommission({ done }: { done: () => void }) {
   const [checks, setChecks] = useState<CommissionChecks>();
   const [selectedReturns, setSelectedReturns] = useState<string[]>([]);
 
-  const [error, setError] = useState("");
+  const [searchError, setSearchError] = useState("");
+  const [simulationError, setSimulationError] = useState("");
+  const [adjustmentsError, setAdjustmentsError] = useState("");
   const [busy, setBusy] = useState(false);
+  const reviewRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (undefined !== preview) {
+      reviewRef.current?.focus({ preventScroll: true });
+      reviewRef.current?.scrollIntoView({ block: "start" });
+    }
+  }, [preview]);
 
   const selectableOrders = (orders ?? []).filter((order) => null !== order.priceContext);
   const allOrdersSelected =
@@ -506,6 +519,7 @@ function NewCommission({ done }: { done: () => void }) {
     true === selectableOrders.every((order) => true === selected.includes(order.orderNumber));
 
   function toggleAllOrders(checked: boolean) {
+    setSimulationError("");
     setPreview(undefined);
     setOrderIds([]);
     setSelected(true === checked ? selectableOrders.map((order) => order.orderNumber) : []);
@@ -519,7 +533,9 @@ function NewCommission({ done }: { done: () => void }) {
     setSelected([]);
     setOrderIds([]);
     setPreview(undefined);
-    setError("");
+    setSearchError("");
+    setSimulationError("");
+    setAdjustmentsError("");
   }
 
   async function search() {
@@ -531,13 +547,13 @@ function NewCommission({ done }: { done: () => void }) {
       "" === to ||
       "" === square
     ) {
-      setError("Informe o cliente principal, a praça do pedido e as duas datas.");
+      setSearchError("Informe o cliente principal, a praça do pedido e as duas datas.");
 
       return;
     }
 
     if (from > to) {
-      setError("A data inicial deve ser anterior ou igual à data final.");
+      setSearchError("A data inicial deve ser anterior ou igual à data final.");
 
       return;
     }
@@ -559,7 +575,7 @@ function NewCommission({ done }: { done: () => void }) {
       setAdjustments(pending);
       setAdjustmentPage(1);
     } catch (exception) {
-      setError((exception as Error).message);
+      setSearchError((exception as Error).message);
     } finally {
       setBusy(false);
     }
@@ -567,6 +583,7 @@ function NewCommission({ done }: { done: () => void }) {
 
   async function loadAdjustments(page: number) {
     setBusy(true);
+    setAdjustmentsError("");
 
     try {
       setAdjustments(
@@ -574,7 +591,7 @@ function NewCommission({ done }: { done: () => void }) {
       );
       setAdjustmentPage(page);
     } catch (exception) {
-      setError((exception as Error).message);
+      setAdjustmentsError((exception as Error).message);
     } finally {
       setBusy(false);
     }
@@ -583,7 +600,7 @@ function NewCommission({ done }: { done: () => void }) {
   async function simulate() {
     setBusy(true);
     setPreview(undefined);
-    setError("");
+    setSimulationError("");
 
     try {
       const ids: number[] = [];
@@ -621,13 +638,14 @@ function NewCommission({ done }: { done: () => void }) {
       setPreview(result);
       setChecks(result.checks);
     } catch (exception) {
-      setError((exception as Error).message);
+      setSimulationError((exception as Error).message);
     } finally {
       setBusy(false);
     }
   }
 
   function toggle(number: string) {
+    setSimulationError("");
     setPreview(undefined);
     setOrderIds([]);
     setSelected(
@@ -639,6 +657,7 @@ function NewCommission({ done }: { done: () => void }) {
 
   return (
     <FieldsForm
+      errorPlacement="actions"
       label={
         undefined === preview ? "Registrar comissão" : `Lançar comissão de ${money(preview.net)}`
       }
@@ -772,7 +791,7 @@ function NewCommission({ done }: { done: () => void }) {
       >
         {true === busy ? "Processando…" : "Buscar pedidos no Winthor"}
       </button>
-      <ErrorNotice message={error} />
+      <ActionErrorNotice message={searchError} />
       {null === orders && (
         <p className="muted">
           Preencha os filtros e clique em buscar. Nenhum pedido foi consultado ainda.
@@ -888,6 +907,7 @@ function NewCommission({ done }: { done: () => void }) {
               </div>
             ))}
           {0 === adjustments.items.length && <p className="muted">Sem deduções pendentes.</p>}
+          <ActionErrorNotice message={adjustmentsError} />
           <Pagination page={adjustmentPage} total={adjustments.total} change={loadAdjustments} />
         </fieldset>
       )}
@@ -899,17 +919,21 @@ function NewCommission({ done }: { done: () => void }) {
       >
         {true === busy ? "Processando…" : "Simular comissão"}
       </button>
+      <ActionErrorNotice message={simulationError} />
       <CommissionChecksPanel
         checks={checks}
         selectedReturns={selectedReturns}
         onSelect={(transactions) => {
+          setSimulationError("");
           setSelectedReturns(transactions);
           setPreview(undefined);
         }}
       />
       {undefined !== preview && (
         <section
-          className="commission-review"
+          ref={reviewRef}
+          tabIndex={-1}
+          className="commission-review action-feedback"
           aria-label="Conferência da comissão"
           aria-live="polite"
         >
