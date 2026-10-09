@@ -36,6 +36,19 @@ class Enterprise
     #[ORM\Column(length: 20)]
     private string $commissionPrefix = 'GCOM';
 
+    #[ORM\Column(length: 64, nullable: true)]
+    private ?string $logoFilename = null;
+
+    public function getLogoFilename(): ?string
+    {
+        return $this->logoFilename;
+    }
+
+    public function setLogoFilename(?string $filename): void
+    {
+        $this->logoFilename = $filename;
+    }
+
     public function update(UpdateEnterpriseInput $input): void
     {
         $this->legalName = $input->legalName;

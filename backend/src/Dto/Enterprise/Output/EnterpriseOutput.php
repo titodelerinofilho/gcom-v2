@@ -24,10 +24,14 @@ final readonly class EnterpriseOutput
 
     public bool $configured;
 
+    public ?string $logoUrl;
+
     public function __construct(?Enterprise $enterprise)
     {
         $this->configured = null !== $enterprise;
         $enterprise ??= new Enterprise();
+
+        $this->logoUrl = null === $enterprise->getLogoFilename() ? null : '/api/settings/enterprise/logo?v='.$enterprise->getLogoFilename();
 
         $this->legalName = $enterprise->getLegalName();
         $this->tradeName = $enterprise->getTradeName();

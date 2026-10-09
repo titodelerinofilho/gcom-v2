@@ -89,6 +89,8 @@ deduções para um novo lançamento. Consultas e importações não alteram o Wi
   e são preservados como snapshot. A localização do lançamento não comprova, por si só,
   a conciliação do valor, beneficiário ou baixa financeira.
 - Dashboard, evolução mensal, ranking de clientes, relatórios PDF/XLSX/CSV e comprovante imprimível.
+- [Ficha do Cliente Revenda](docs/reseller-profile.md), com vendas agenciadas, comissões pagas,
+  devoluções abatidas, débitos da carteira, classificação Ouro/Prata/Bronze e PDF próprio para impressão.
 - Auditoria de alterações e logs Monolog capturados por listeners em `EventListener/Logs`, com identificador de requisição.
 - Camada `Database` para Oracle: conexão, statement, resultado e transação; consultas despacham eventos também no Doctrine/PostgreSQL.
 - Backup diário, retenção configurável e restauração em uma base nova.
@@ -156,7 +158,9 @@ as consultas Oracle por um test double. Consulte [testes e operação](docs/oper
 ## Identidade visual
 
 A interface identifica o produto como **GCOM**. O nome da empresa aparece no workspace
-conforme o cadastro em Configurações → Empresa. O prefixo cadastrado vale somente para
+conforme o cadastro em Configurações → Empresa. O cadastro permite enviar a logo da
+empresa em PNG/JPEG, exibida junto da logo GCOM no menu e nos PDFs; os arquivos
+ficam no volume local persistente `backend_var`. O prefixo cadastrado vale somente para
 novas comissões; códigos e snapshots anteriores são preservados.
 
 ## Regras ainda sujeitas a homologação

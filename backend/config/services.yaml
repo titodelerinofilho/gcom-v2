@@ -18,3 +18,4 @@ services:
     App\EventListener\Logs\RequestContextProcessor:
         tags: [{ name: monolog.processor }]
     App\Database\Doctrine\QueryMiddleware: ~
+    App\Integration\Winthor\ResellerGatewayInterface: '@App\Repository\Winthor\ResellerRepository'

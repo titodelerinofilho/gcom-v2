@@ -9,7 +9,8 @@ export class ApiError extends Error {
 }
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
-  if (options.body) headers.set("Content-Type", "application/json");
+  if (options.body && false === options.body instanceof FormData)
+    headers.set("Content-Type", "application/json");
   if (options.method && !["GET", "HEAD"].includes(options.method)) {
     const csrfResponse = await fetch("/api/csrf", {
       credentials: "same-origin",
@@ -298,6 +299,7 @@ export type CalculationPreview = {
 };
 
 export type Enterprise = {
+  logoUrl: string | null;
   legalName: string;
   tradeName: string;
   cnpj: string;
