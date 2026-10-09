@@ -144,6 +144,7 @@ export type CommissionChecks = {
     date: string | null;
     orderNumbers: string[];
     deductionAmount: string | null;
+    productsAmount?: string | null;
     selected: boolean;
     items?: {
       orderNumber: string;

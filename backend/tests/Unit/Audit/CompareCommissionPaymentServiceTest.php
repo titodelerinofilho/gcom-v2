@@ -15,12 +15,12 @@ final class CompareCommissionPaymentServiceTest extends TestCase
 {
     private function payment(string $amount = '100.00', ?string $reference = '74901'): PaymentLink
     {
-        return new PaymentLink((new Commission())->setNetAmount('100.00'), '749', $reference, $amount, new DateTimeImmutable('today'), new User(), '');
+        return new PaymentLink(new Commission()->setNetAmount('100.00'), '749', $reference, $amount, new DateTimeImmutable('today'), new User(), '');
     }
 
     public function testMatchingAmountsDoNotCreateAnAlert(): void
     {
-        $output = (new CompareCommissionPaymentService())->compare($this->payment(), ['records' => [['VALOR' => '100.000000', 'VPAGO' => '100,00', 'DTPAGTO' => '2026-10-08']]], 'current', null);
+        $output = new CompareCommissionPaymentService()->compare($this->payment(), ['records' => [['VALOR' => '100.000000', 'VPAGO' => '100,00', 'DTPAGTO' => '2026-10-08']]], 'current', null);
 
         self::assertSame([], $output->differences);
         self::assertSame('100.00', $output->paidAmount);
@@ -28,7 +28,7 @@ final class CompareCommissionPaymentServiceTest extends TestCase
 
     public function testConfirmedAndWinthorPaidAmountsAreComparedWithTheCommission(): void
     {
-        $output = (new CompareCommissionPaymentService())->compare($this->payment('90.00'), ['records' => [['VALOR' => '110', 'VPAGO' => '80', 'DTPAGTO' => '2026-10-08']]], 'current', null);
+        $output = new CompareCommissionPaymentService()->compare($this->payment('90.00'), ['records' => [['VALOR' => '110', 'VPAGO' => '80', 'DTPAGTO' => '2026-10-08']]], 'current', null);
 
         self::assertCount(3, $output->differences);
         self::assertSame(['-10.00', '10.00', '-20.00'], array_map(static fn ($difference): string => $difference->difference, $output->differences));
@@ -37,7 +37,7 @@ final class CompareCommissionPaymentServiceTest extends TestCase
 
     public function testZeroWithoutAPaymentDateDoesNotPretendTheWinthorPaymentIsConfirmed(): void
     {
-        $output = (new CompareCommissionPaymentService())->compare($this->payment(), ['records' => [['VALOR' => '100', 'VPAGO' => '0', 'DTPAGTO' => null]]], 'current', null);
+        $output = new CompareCommissionPaymentService()->compare($this->payment(), ['records' => [['VALOR' => '100', 'VPAGO' => '0', 'DTPAGTO' => null]]], 'current', null);
 
         self::assertNull($output->paidAmount);
         self::assertSame([], $output->differences);
@@ -45,7 +45,7 @@ final class CompareCommissionPaymentServiceTest extends TestCase
 
     public function testMissingWinthorDataStillDetectsAManualAmountDifference(): void
     {
-        $output = (new CompareCommissionPaymentService())->compare($this->payment('90.00'), null, 'unavailable', 'Consulta indisponível');
+        $output = new CompareCommissionPaymentService()->compare($this->payment('90.00'), null, 'unavailable', 'Consulta indisponível');
 
         self::assertCount(1, $output->differences);
         self::assertNull($output->launchAmount);
@@ -54,6 +54,6 @@ final class CompareCommissionPaymentServiceTest extends TestCase
 
     public function testNoReferenceDoesNotRunTheRoutine749Comparison(): void
     {
-        self::assertNull((new CompareCommissionPaymentService())->compare($this->payment('90.00', null), null, 'unavailable', null));
+        self::assertNull(new CompareCommissionPaymentService()->compare($this->payment('90.00', null), null, 'unavailable', null));
     }
 }

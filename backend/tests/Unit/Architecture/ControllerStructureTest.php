@@ -34,11 +34,16 @@ final class ControllerStructureTest extends TestCase
             }
 
             $relative = substr($file->getPathname(), strlen($directory) + 1, -4);
+
             $class = new ReflectionClass('App\\Controller\\'.str_replace('/', '\\', $relative));
+
             self::assertStringEndsWith('Controller', $class->getShortName());
+
             $methods = array_filter($class->getMethods(ReflectionMethod::IS_PUBLIC), static fn (ReflectionMethod $method): bool => $method->getDeclaringClass()->getName() === $class->getName() && false === $method->isConstructor());
+
             self::assertSame(['__invoke'], array_values(array_map(static fn (ReflectionMethod $method): string => $method->getName(), $methods)), $class->getName());
             self::assertCount(1, $class->getAttributes(Route::class), $class->getName());
+
             ++$controllers;
         }
 
@@ -56,6 +61,7 @@ final class ControllerStructureTest extends TestCase
             }
 
             $source = file_get_contents($file->getPathname());
+
             self::assertStringNotContainsString('EntityManager', $source, $file->getPathname());
             self::assertDoesNotMatchRegularExpression('/->(?:persist|flush|wrapInTransaction|beginTransaction|commit|rollback|getConnection)\(/', $source, $file->getPathname());
         }

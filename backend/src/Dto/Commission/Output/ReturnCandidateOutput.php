@@ -19,6 +19,7 @@ final readonly class ReturnCandidateOutput
         public ?string $deductionAmount,
         public bool $selected,
         public array $items = [],
+        public ?string $productsAmount = null,
     ) {
     }
 }

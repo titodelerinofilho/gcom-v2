@@ -54,6 +54,7 @@ export function Pagination({
       </span>
       <div>
         <button
+          type="button"
           className="icon-button"
           aria-label="Página anterior"
           disabled={page === 1}
@@ -62,6 +63,7 @@ export function Pagination({
           <ArrowLeft size={16} />
         </button>
         <button
+          type="button"
           className="icon-button"
           aria-label="Próxima página"
           disabled={page * 30 >= total}
@@ -108,4 +110,22 @@ export function ErrorNotice({ message }: { message: string }) {
       {message}
     </div>
   ) : null;
+}
+
+export function ActionErrorNotice({ message }: { message: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (0 < message.length) {
+      ref.current?.focus({ preventScroll: true });
+      ref.current?.scrollIntoView({ block: "nearest" });
+    }
+  }, [message]);
+
+  if (0 === message.length) return null;
+
+  return (
+    <div ref={ref} tabIndex={-1} className="action-feedback">
+      <ErrorNotice message={message} />
+    </div>
+  );
 }

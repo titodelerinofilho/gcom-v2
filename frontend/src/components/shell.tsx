@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
 import {
   LayoutDashboard,
+  BookOpen,
   BadgePercent,
   PackageSearch,
   SlidersHorizontal,
@@ -40,6 +41,7 @@ const nav = [
   { href: "/settings", label: "Cálculo da comissão", icon: SlidersHorizontal, role: "ROLE_ADMIN" },
   { href: "/settings/enterprise", label: "Empresa", icon: SlidersHorizontal, role: "ROLE_ADMIN" },
   { href: "/users", label: "Usuários", icon: Users, role: "ROLE_ADMIN" },
+  { href: "/faq", label: "FAQ e ajuda", icon: BookOpen },
 ];
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
