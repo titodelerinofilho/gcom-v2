@@ -5,3 +5,6 @@ services:
     App\Tests\Double\Winthor\InMemoryMovementGateway:
         public: true
     App\Integration\Winthor\MovementGatewayInterface: '@App\Tests\Double\Winthor\InMemoryMovementGateway'
+    App\Tests\Double\Winthor\InMemoryResellerGateway:
+        public: true
+    App\Integration\Winthor\ResellerGatewayInterface: '@App\Tests\Double\Winthor\InMemoryResellerGateway'

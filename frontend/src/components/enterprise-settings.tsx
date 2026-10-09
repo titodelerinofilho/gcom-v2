@@ -4,6 +4,7 @@ import { api, type Enterprise } from "@/lib/api";
 import { FieldsForm, Heading } from "./collections";
 import { allowed, useUser } from "./shell";
 import { ErrorNotice, Loading } from "./ui";
+import { EnterpriseLogoSettings } from "./enterprise-logo-settings";
 
 const fields = [
   { name: "legalName", label: "Razão social", max: 180, required: true },
@@ -48,47 +49,50 @@ export function EnterpriseSettings() {
       {undefined === enterprise ? (
         <Loading />
       ) : (
-        <section className="panel form-panel">
-          <FieldsForm
-            label="Salvar empresa"
-            done={() => {
-              setSaved(true);
-              window.dispatchEvent(new Event("enterprise-updated"));
-            }}
-            submit={async (form) => {
-              setSaved(false);
-              const payload = Object.fromEntries(
-                fields.map(({ name }) => [name, String(form.get(name) ?? "").trim()]),
-              );
-              payload.commissionPrefix = payload.commissionPrefix.toUpperCase();
-              const value = await api<Enterprise>("/settings/enterprise", {
-                method: "PUT",
-                body: JSON.stringify(payload),
-              });
-              setEnterprise(value);
-            }}
-          >
-            <div className="form-grid">
-              {fields.map((field) => (
-                <label key={field.name}>
-                  {field.label}
-                  <input
-                    name={field.name}
-                    defaultValue={enterprise[field.name]}
-                    maxLength={field.max}
-                    required={"required" in field && true === field.required}
-                    type={"type" in field ? field.type : "text"}
-                    pattern={
-                      field.name === "commissionPrefix"
-                        ? "[A-Za-z0-9][A-Za-z0-9_-]{0,19}"
-                        : undefined
-                    }
-                  />
-                </label>
-              ))}
-            </div>
-          </FieldsForm>
-        </section>
+        <>
+          <section className="panel form-panel">
+            <FieldsForm
+              label="Salvar empresa"
+              done={() => {
+                setSaved(true);
+                window.dispatchEvent(new Event("enterprise-updated"));
+              }}
+              submit={async (form) => {
+                setSaved(false);
+                const payload = Object.fromEntries(
+                  fields.map(({ name }) => [name, String(form.get(name) ?? "").trim()]),
+                );
+                payload.commissionPrefix = payload.commissionPrefix.toUpperCase();
+                const value = await api<Enterprise>("/settings/enterprise", {
+                  method: "PUT",
+                  body: JSON.stringify(payload),
+                });
+                setEnterprise(value);
+              }}
+            >
+              <div className="form-grid">
+                {fields.map((field) => (
+                  <label key={field.name}>
+                    {field.label}
+                    <input
+                      name={field.name}
+                      defaultValue={enterprise[field.name]}
+                      maxLength={field.max}
+                      required={"required" in field && true === field.required}
+                      type={"type" in field ? field.type : "text"}
+                      pattern={
+                        field.name === "commissionPrefix"
+                          ? "[A-Za-z0-9][A-Za-z0-9_-]{0,19}"
+                          : undefined
+                      }
+                    />
+                  </label>
+                ))}
+              </div>
+            </FieldsForm>
+          </section>
+          <EnterpriseLogoSettings enterprise={enterprise} updated={setEnterprise} />
+        </>
       )}
     </>
   );

@@ -6,13 +6,19 @@ namespace App\Service\Report;
 
 use App\Dto\Report\Output\ReportExportContext;
 use App\Exception\Business\BusinessException;
+use App\Service\Enterprise\GetEnterpriseLogoService;
 use DateTimeImmutable;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 final readonly class ReportPdfTemplateService
 {
-    public function __construct(#[Autowire('%kernel.project_dir%')] private string $projectDir)
+    public function __construct(#[Autowire('%kernel.project_dir%')] private string $projectDir, private GetEnterpriseLogoService $enterpriseLogo)
     {
+    }
+
+    private static function escapeLogo(string $value): string
+    {
+        return htmlspecialchars($value, \ENT_QUOTES | \ENT_SUBSTITUTE, 'UTF-8');
     }
 
     public function render(ReportExportContext $context, iterable $rows): string
@@ -20,6 +26,8 @@ final readonly class ReportPdfTemplateService
         $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, \ENT_QUOTES | \ENT_SUBSTITUTE, 'UTF-8');
         $money = static fn (mixed $value): string => null === $value || '' === $value ? '—' : 'R$ '.number_format((float) $value, 2, ',', '.');
         $date = static fn (mixed $value): string => null === $value || '' === $value ? '—' : (new DateTimeImmutable((string) $value))->format('d/m/Y');
+        $companyLogo = $this->enterpriseLogo->dataUri();
+        $companyImage = null === $companyLogo ? '' : '<img style="float:right;width:110px;max-height:70px" alt="Logo da empresa" src="'.self::escapeLogo($companyLogo).'">';
         $logo = base64_encode(file_get_contents($this->projectDir.'/public/logo-gcom.png'));
         $commissions = 'commissions' === $context->kind;
         $columns = true === $commissions
@@ -36,7 +44,7 @@ final readonly class ReportPdfTemplateService
             tr{page-break-inside:avoid}thead{display:table-header-group}.number{text-align:right;white-space:nowrap}
             .sub{display:block;font-size:8px;color:#606061;margin-top:4px;line-height:1.5}
             .atg td{background:#fffbeb}.atg .mode{font-weight:bold;color:#92400e}.notes td{font-size:8px;padding-top:4px;color:#606061}
-            </style></head><body><header><img alt="GCOM" src="data:image/png;base64,'.$logo.'"><h1>'.$escape($context->title).'</h1>
+            </style></head><body><header>'.$companyImage.'<img alt="GCOM" src="data:image/png;base64,'.$logo.'"><h1>'.$escape($context->title).'</h1>
             <p class="meta">'.$escape($context->criteria).'</p>
             <p class="meta">Gerado em: '.$escape($context->generatedAt).'<br>Dados preservados em: '.$escape($context->savedAt ?? $context->generatedAt).'</p></header><table><colgroup>';
         foreach ($widths as $width) {

@@ -31,6 +31,7 @@ export function allowed(user: User, role: string) {
 const nav = [
   { href: "/", label: "Visão geral", icon: LayoutDashboard },
   { href: "/commissions", label: "Comissões", icon: BadgePercent },
+  { href: "/resellers", label: "Ficha do Cliente Revenda", icon: Users },
   { href: "/winthor", label: "Consultas Winthor", icon: PackageSearch },
   { href: "/orders", label: "Pedidos", icon: PackageSearch },
   { href: "/adjustments", label: "Débitos e devoluções", icon: SlidersHorizontal },
@@ -99,7 +100,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <div className="app-shell">
         <aside className={`sidebar ${open ? "mobile-open" : ""}`}>
           <Link href="/" className="brand">
-            <Brand />
+            <Brand enterprise={enterprise} />
           </Link>
           <button
             className="mobile-close icon-button"

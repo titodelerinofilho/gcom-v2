@@ -140,3 +140,28 @@ O legado usa SID WINT. A conexão local deve usar o descritor completo mostrado 
 ## Formato numérico Oracle
 
 A sessão do Winthor pode retornar NUMBER com vírgula decimal (inclusive frações como ,5). Result identifica as colunas NUMBER pelos metadados PDO e as normaliza para strings decimais com ponto, usando precisão arbitrária, antes de criar snapshots ou calcular. Texto, NULL e outros drivers são preservados. Não há ALTER SESSION nem escrita Oracle; Money mantém a validação estrita dos valores de entrada.
+
+## Logo da empresa
+
+Em **Configurações → Empresa**, salve os dados e envie a logo em PNG/JPEG, até 1 MiB
+com dimensões máximas de 4096 × 4096 pixels. Administradores podem substituir ou
+remover a imagem; upload e remoção exigem sessão e CSRF e geram auditoria. A logo
+GCOM permanece junto da logo da empresa no menu e nos relatórios PDF, inclusive na
+Ficha do Cliente Revenda. A prévia mostra a imagem escolhida antes do envio.
+
+Os arquivos recebem nomes aleatórios e ficam em `/app/var/enterprise-logos/prod`,
+no volume `backend_var` já montado pelo `compose.yml`. O banco guarda somente a
+referência ao arquivo. Rebuilds e atualizações preservam esse volume; `down -v`
+remove seus arquivos. Os arquivos são servidos por uma rota autenticada do backend.
+
+O dump PostgreSQL não inclui imagens. Ao exportar backups, copie também as logos:
+
+```sh
+docker compose cp backend:/app/var/enterprise-logos ./enterprise-logos-backup
+```
+
+Na restauração, recupere os arquivos junto com o banco e mantenha a propriedade
+`www-data` e permissões de leitura para o backend. A migration `Version20261009150000`
+adiciona a referência nullable à logo; execute `make migrate` após atualizar a imagem.
+O Nginx aceita requisições de até 2 MiB para comportar o formulário multipart; a
+validação da imagem mantém o limite de 1 MiB. O instalador recebe o mesmo limite.

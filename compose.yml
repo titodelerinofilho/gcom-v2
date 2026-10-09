@@ -50,6 +50,7 @@ services:
       postgres:
         condition: service_healthy
     volumes:
+      # Cache, sessões e logos da empresa permanecem entre atualizações.
       - backend_var:/app/var
     healthcheck:
       interval: 30s
